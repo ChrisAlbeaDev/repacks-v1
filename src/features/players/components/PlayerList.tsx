@@ -1,6 +1,8 @@
+import type { Player } from '../types';
+import { TextInput } from '../../../components/TextInput';
+import { Button } from '../../../components/Button';
+import { PlayerProfileModal } from './PlayerProfileModal';
 import { useState, useEffect } from 'react';
-import type { Player } from '../types'; 
-import { Button } from '../../../components/Button'; 
 
 interface PlayerListProps {
   players: Player[];
@@ -10,16 +12,32 @@ interface PlayerListProps {
   onDeletePlayer: (id: number) => Promise<void>;
   onBack: () => void;
   clearError: () => void;
-  onViewPlayer: (playerId: number) => void; 
+  onViewPlayer: (playerId: number) => void;
 }
 
 export const PlayerList: React.FC<PlayerListProps> = ({ players, loading, error, onUpdatePlayer, onDeletePlayer, onBack, clearError, onViewPlayer }) => {
-  
+  const [editingPlayerId, setEditingPlayerId] = useState<number | null>(null);
+  const [editedPlayerName, setEditedPlayerName] = useState<string>('');
+
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+
+  const openProfileModal = (player: Player) => {
+    setSelectedPlayer(player);
+    setShowProfileModal(true);
+    clearError();
+  };
+
+  const closeProfileModal = () => {
+    setSelectedPlayer(null);
+    setShowProfileModal(false);
+    clearError();
+  };
 
   useEffect(() => {
-    
-    clearError(); 
+    clearError();
   }, [clearError]);
+
 
   return (
     <>
@@ -40,16 +58,27 @@ export const PlayerList: React.FC<PlayerListProps> = ({ players, loading, error,
             key={player.id}
             className="flex items-center justify-between p-3 rounded-md transition duration-200 bg-gray-50"
           >
-           
             <span
               className="text-lg text-gray-800 cursor-pointer hover:text-blue-600 hover:underline"
-              onClick={() => onViewPlayer(player.id)} 
+              onClick={() => onViewPlayer(player.id)}
             >
               {player.name}
             </span>
           </li>
         ))}
       </ul>
+
+      {showProfileModal && selectedPlayer && (
+        <PlayerProfileModal
+          player={selectedPlayer}
+          onClose={closeProfileModal}
+          onUpdatePlayer={onUpdatePlayer}
+          onDeletePlayer={onDeletePlayer}
+          loading={loading}
+          error={error}
+          clearError={clearError}
+        />
+      )}
     </>
   );
 };

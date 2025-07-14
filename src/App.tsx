@@ -2,7 +2,8 @@ import { PlayersPage, PlayerProfilePage } from './features/players';
 import { HomePage } from './components/HomePage';
 import { Button } from './components/Button';
 import { usePlayers } from './hooks/usePlayers';
-import { useState } from 'react'
+import { useState } from 'react';
+
 type AppView = 'home' | 'players' | 'playerProfile';
 
 function App() {

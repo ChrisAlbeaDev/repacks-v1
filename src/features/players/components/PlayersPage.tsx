@@ -1,30 +1,26 @@
-import React, { useState } from 'react'; 
-import { PlayerList, AddPlayerModal } from '../'; 
-import { usePlayers } from '../../../hooks/usePlayers'; 
-import { TextInput } from '../../../components/TextInput'; 
-import { Button } from '../../../components/Button'; 
-
+import { AddPlayerForm, PlayerList, AddPlayerModal, PlayerProfilePage } from '../';
+import { usePlayers } from '../../../hooks/usePlayers';
+import type { Player } from '../types';
+import { TextInput } from '../../../components/TextInput';
+import { Button } from '../../../components/Button';
+import React, {useState, useEffect } from 'react';
 interface PlayersPageProps {
   onBack: () => void;
-  onViewPlayerProfile: (playerId: number) => void; 
+  onViewPlayerProfile: (playerId: number) => void;
 }
 
 export const PlayersPage: React.FC<PlayersPageProps> = ({ onBack, onViewPlayerProfile }) => {
   const { players, loading, error, addPlayer, updatePlayer, deletePlayer, clearPlayerError } = usePlayers();
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc'); 
-  const [showAddPlayerModal, setShowAddPlayerModal] = useState(false); 
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
 
-  
   const filteredPlayers = players.filter(player =>
-    
     (player.name ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (player.fullName ?? '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  
   const sortedPlayers = [...filteredPlayers].sort((a, b) => {
-   
     const nameA = (a.name ?? '').toLowerCase();
     const nameB = (b.name ?? '').toLowerCase();
 
@@ -41,12 +37,12 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ onBack, onViewPlayerPr
 
   const handleOpenAddPlayerModal = () => {
     setShowAddPlayerModal(true);
-    clearPlayerError(); 
+    clearPlayerError();
   };
 
   const handleCloseAddPlayerModal = () => {
     setShowAddPlayerModal(false);
-    clearPlayerError(); 
+    clearPlayerError();
   };
 
   return (
@@ -78,7 +74,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ onBack, onViewPlayerPr
         onDeletePlayer={deletePlayer}
         onBack={onBack}
         clearError={clearPlayerError}
-        onViewPlayer={onViewPlayerProfile} 
+        onViewPlayer={onViewPlayerProfile}
       />
 
       {showAddPlayerModal && (

@@ -1,24 +1,25 @@
 import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '../lib/supabaseClient'; 
+import { supabase } from '../lib/supabaseClient';
 
 interface CrudHookResult<T> {
   data: T[];
   loading: boolean;
   error: string | null;
-  add: (newItem: Omit<T, 'id' | 'inserted_at'>) => Promise<T | undefined>; 
+  add: (newItem: Omit<T, 'id' | 'inserted_at'>) => Promise<T | undefined>;
   update: (id: number, updatedFields: Partial<T>) => Promise<T | undefined>;
   remove: (id: number) => Promise<void>;
-  refetch: () => Promise<void>; 
-  clearError: () => void; 
+  refetch: () => Promise<void>;
+  clearError: () => void;
 }
 
 type CreatePayload<T> = Omit<T, 'id' | 'inserted_at'>;
 
 export const useCrud = <T extends { id: number; inserted_at: string }>(
   tableName: string,
-  orderByColumn: keyof T = 'id' as keyof T, 
+  orderByColumn: keyof T = 'id' as keyof T,
   ascending: boolean = true,
-  uniqueFieldName?: keyof Omit<T, 'id' | 'inserted_at'> 
+  uniqueFieldName?: keyof Omit<T, 'id' | 'inserted_at'>,
+  initialFilter?: { column: keyof T; value: any } // Added optional filter
 ): CrudHookResult<T> => {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -31,11 +32,15 @@ export const useCrud = <T extends { id: number; inserted_at: string }>(
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null); 
-      const { data: fetchedData, error: fetchError } = await supabase
-        .from(tableName)
-        .select('*')
-        .order(orderByColumn as string, { ascending: ascending }); 
+      setError(null);
+      let query = supabase.from(tableName).select('*');
+
+      if (initialFilter) {
+        query = query.eq(initialFilter.column as string, initialFilter.value);
+      }
+
+      const { data: fetchedData, error: fetchError } = await query
+        .order(orderByColumn as string, { ascending: ascending });
 
       if (fetchError) {
         throw fetchError;
@@ -47,7 +52,7 @@ export const useCrud = <T extends { id: number; inserted_at: string }>(
     } finally {
       setLoading(false);
     }
-  }, [tableName, orderByColumn, ascending]); 
+  }, [tableName, orderByColumn, ascending, initialFilter]); // Added initialFilter to dependencies
 
   const add = useCallback(async (newItem: CreatePayload<T>): Promise<T | undefined> => {
     try {
@@ -66,7 +71,7 @@ export const useCrud = <T extends { id: number; inserted_at: string }>(
 
       const { data: addedItem, error: addError } = await supabase
         .from(tableName)
-        .insert(newItem as any) 
+        .insert(newItem as any)
         .select();
 
       if (addError) {
@@ -76,7 +81,6 @@ export const useCrud = <T extends { id: number; inserted_at: string }>(
         setData((prevData) => [...prevData, addedItem[0]]);
         return addedItem[0];
       }
-
       return undefined;
     } catch (err: any) {
       setError(err.message);
@@ -85,12 +89,12 @@ export const useCrud = <T extends { id: number; inserted_at: string }>(
     } finally {
       setLoading(false);
     }
-  }, [tableName, data, uniqueFieldName]); 
+  }, [tableName, data, uniqueFieldName]);
 
   const update = useCallback(async (id: number, updatedFields: Partial<T>): Promise<T | undefined> => {
     try {
       setLoading(true);
-      setError(null); 
+      setError(null);
 
       if (uniqueFieldName && updatedFields[uniqueFieldName] !== undefined) {
         const updatedValue = updatedFields[uniqueFieldName];
@@ -106,7 +110,7 @@ export const useCrud = <T extends { id: number; inserted_at: string }>(
 
       const { data: updatedItem, error: updateError } = await supabase
         .from(tableName)
-        .update(updatedFields as any) 
+        .update(updatedFields as any)
         .eq('id', id)
         .select();
 
@@ -127,12 +131,12 @@ export const useCrud = <T extends { id: number; inserted_at: string }>(
     } finally {
       setLoading(false);
     }
-  }, [tableName, data, uniqueFieldName]); 
+  }, [tableName, data, uniqueFieldName]);
 
   const remove = useCallback(async (id: number): Promise<void> => {
     try {
       setLoading(true);
-      setError(null); 
+      setError(null);
       const { error: removeError } = await supabase
         .from(tableName)
         .delete()
