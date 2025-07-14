@@ -1,34 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Player } from '../types'; 
-import { Button } from '../../../components/Button';
-import { PlayerProfileModal } from './PlayerProfileModal'; 
+import { Button } from '../../../components/Button'; 
 
 interface PlayerListProps {
   players: Player[];
   loading: boolean;
   error: string | null;
-
   onUpdatePlayer: (id: number, updatedFields: Partial<Player>) => Promise<Player | undefined>;
-  onDeletePlayer: (id: number) => Promise<void>; 
-  onBack: () => void; 
-  clearError: () => void; 
+  onDeletePlayer: (id: number) => Promise<void>;
+  onBack: () => void;
+  clearError: () => void;
+  onViewPlayer: (playerId: number) => void; 
 }
 
-export const PlayerList: React.FC<PlayerListProps> = ({ players, loading, error, onUpdatePlayer, onDeletePlayer, onBack, clearError }) => {
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+export const PlayerList: React.FC<PlayerListProps> = ({ players, loading, error, onUpdatePlayer, onDeletePlayer, onBack, clearError, onViewPlayer }) => {
+  
 
-  const openProfileModal = (player: Player) => {
-    setSelectedPlayer(player);
-    setShowProfileModal(true);
+  useEffect(() => {
+    
     clearError(); 
-  };
-
-  const closeProfileModal = () => {
-    setSelectedPlayer(null);
-    setShowProfileModal(false);
-    clearError();
-  };
+  }, [clearError]);
 
   return (
     <>
@@ -37,7 +28,7 @@ export const PlayerList: React.FC<PlayerListProps> = ({ players, loading, error,
       </Button>
 
       {loading && players.length === 0 && <p className="text-center text-gray-600">Loading players...</p>}
-      {error && <p className="text-center text-red-500 text-sm italic mt-2">{error}</p>} 
+      {error && <p className="text-center text-red-500 text-sm italic mt-2">{error}</p>}
 
       {!loading && players.length === 0 && !error && (
         <p className="text-center text-gray-600">No players yet. Add one!</p>
@@ -49,27 +40,16 @@ export const PlayerList: React.FC<PlayerListProps> = ({ players, loading, error,
             key={player.id}
             className="flex items-center justify-between p-3 rounded-md transition duration-200 bg-gray-50"
           >
+           
             <span
               className="text-lg text-gray-800 cursor-pointer hover:text-blue-600 hover:underline"
-              onClick={() => openProfileModal(player)}
+              onClick={() => onViewPlayer(player.id)} 
             >
               {player.name}
             </span>
           </li>
         ))}
       </ul>
-
-      {showProfileModal && selectedPlayer && (
-        <PlayerProfileModal
-          player={selectedPlayer}
-          onClose={closeProfileModal}
-          onUpdatePlayer={onUpdatePlayer}
-          onDeletePlayer={onDeletePlayer}
-          loading={loading} 
-          error={error} 
-          clearError={clearError} 
-        />
-      )}
     </>
   );
 };

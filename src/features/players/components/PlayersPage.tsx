@@ -2,27 +2,29 @@ import React, { useState } from 'react';
 import { PlayerList, AddPlayerModal } from '../'; 
 import { usePlayers } from '../../../hooks/usePlayers'; 
 import { TextInput } from '../../../components/TextInput'; 
-import { Button } from '../../../components/Button';
+import { Button } from '../../../components/Button'; 
 
 interface PlayersPageProps {
   onBack: () => void;
+  onViewPlayerProfile: (playerId: number) => void; 
 }
 
-export const PlayersPage: React.FC<PlayersPageProps> = ({ onBack }) => {
+export const PlayersPage: React.FC<PlayersPageProps> = ({ onBack, onViewPlayerProfile }) => {
   const { players, loading, error, addPlayer, updatePlayer, deletePlayer, clearPlayerError } = usePlayers();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc'); 
   const [showAddPlayerModal, setShowAddPlayerModal] = useState(false); 
 
-
+  
   const filteredPlayers = players.filter(player =>
     
     (player.name ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (player.fullName ?? '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  
   const sortedPlayers = [...filteredPlayers].sort((a, b) => {
-    
+   
     const nameA = (a.name ?? '').toLowerCase();
     const nameB = (b.name ?? '').toLowerCase();
 
@@ -44,7 +46,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ onBack }) => {
 
   const handleCloseAddPlayerModal = () => {
     setShowAddPlayerModal(false);
-    clearPlayerError();
+    clearPlayerError(); 
   };
 
   return (
@@ -69,13 +71,14 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ onBack }) => {
       </div>
 
       <PlayerList
-        players={sortedPlayers} 
+        players={sortedPlayers}
         loading={loading}
         error={error}
         onUpdatePlayer={updatePlayer}
         onDeletePlayer={deletePlayer}
         onBack={onBack}
         clearError={clearPlayerError}
+        onViewPlayer={onViewPlayerProfile} 
       />
 
       {showAddPlayerModal && (

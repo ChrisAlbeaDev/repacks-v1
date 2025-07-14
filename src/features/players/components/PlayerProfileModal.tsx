@@ -25,7 +25,7 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState<Partial<Player>>({});
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // NEW: State for delete confirmation modal
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); 
 
   useEffect(() => {
     if (player) {
@@ -34,19 +34,19 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
         address: player.address,
         contactNumber: player.contactNumber,
       });
-      setIsEditing(false); // Reset to view mode when player changes
-      clearError(); // Clear error when modal opens or player changes
+      setIsEditing(false); 
+      clearError(); 
     }
   }, [player, clearError]);
 
   if (!player) {
-    return null; // Don't render if no player is selected
+    return null; 
   }
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setEditedProfile((prev) => ({ ...prev, [name]: value }));
-    if (error) clearError(); // Clear error on typing
+    if (error) clearError(); 
   };
 
   const handleSave = async () => {
@@ -54,26 +54,26 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
 
     const updated = await onUpdatePlayer(player.id, editedProfile);
     if (updated) {
-      setIsEditing(false); // Exit edit mode on successful save
-      onClose(); // Close modal after saving
+      setIsEditing(false); 
+      onClose(); 
     }
   };
 
-  const handleDeleteClick = () => { // NEW: Function to open confirmation modal
+  const handleDeleteClick = () => { 
     setShowDeleteConfirm(true);
-    clearError(); // Clear any existing errors before showing confirmation
+    clearError(); 
   };
 
-  const handleConfirmDelete = async () => { // NEW: Function to handle actual deletion
+  const handleConfirmDelete = async () => { 
     if (!player) return;
     await onDeletePlayer(player.id);
-    setShowDeleteConfirm(false); // Close confirmation modal
-    onClose(); // Close profile modal after deleting
+    setShowDeleteConfirm(false); 
+    onClose(); 
   };
 
   const handleCloseModal = () => {
-    setIsEditing(false); // Ensure edit mode is off when closing
-    clearError(); // Clear any errors
+    setIsEditing(false); 
+    clearError(); 
     onClose();
   };
 
@@ -111,7 +111,7 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
                 <Button onClick={() => setIsEditing(true)} variant="warning">
                   ✏️ Edit Profile
                 </Button>
-                <Button onClick={handleDeleteClick} variant="danger"> {/* Changed to open confirmation modal */}
+                <Button onClick={handleDeleteClick} variant="danger"> 
                   🗑️ Delete Player
                 </Button>
               </div>
@@ -165,7 +165,6 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
         </div>
       </div>
 
-      {/* NEW: Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <DeleteConfirmationModal
           isOpen={showDeleteConfirm}
