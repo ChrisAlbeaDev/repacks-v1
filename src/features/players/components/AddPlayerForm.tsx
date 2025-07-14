@@ -1,14 +1,13 @@
-import { TextInput } from '../../../components/TextInput'; // Adjust path for generic components
-import { SubmitButton } from '../../../components/SubmitButton'; // Adjust path for generic components
-import type { Player } from '../types'; // Import Player type
+import { TextInput } from '../../../components/TextInput'; 
+import { SubmitButton } from '../../../components/SubmitButton'; 
+import type { Player } from '../types'; 
 import { useState } from 'react'
 
 interface AddPlayerFormProps {
-  // FIX: Change onAddPlayer to accept CreatePayload<Player> and return Promise<Player | undefined>
   onAddPlayer: (newItem: Omit<Player, 'id' | 'inserted_at'>) => Promise<Player | undefined>;
   loading: boolean;
-  error: string | null; // NEW: Prop to display error
-  clearError: () => void; // NEW: Prop to clear error
+  error: string | null;
+  clearError: () => void; 
 }
 
 export const AddPlayerForm: React.FC<AddPlayerFormProps> = ({ onAddPlayer, loading, error, clearError }) => {
@@ -17,25 +16,23 @@ export const AddPlayerForm: React.FC<AddPlayerFormProps> = ({ onAddPlayer, loadi
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) {
-      clearError(); // Clear error if input is empty
+      clearError(); 
       return;
     }
-    // FIX: Pass an object { name: ... } instead of just the string
-    // For adding, we only need 'name'. Other fields can be empty strings or default values in DB.
+   
     onAddPlayer({ name: newName.trim(), fullName: '', address: '', contactNumber: '' });
     setNewName('');
   };
 
-  // Clear error when typing
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewName(e.target.value);
-    if (error) { // Only clear if there's an active error
+    if (error) { 
       clearError();
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mb-6 flex flex-col space-y-2"> {/* Changed to flex-col for error display */}
+    <form onSubmit={handleSubmit} className="mb-6 flex flex-col space-y-2"> 
       <div className="flex space-x-2">
         <TextInput
           placeholder="Add a new player name..."
@@ -46,7 +43,7 @@ export const AddPlayerForm: React.FC<AddPlayerFormProps> = ({ onAddPlayer, loadi
           {loading ? 'Adding...' : 'Add'}
         </SubmitButton>
       </div>
-      {error && <p className="text-red-500 text-sm italic mt-1">{error}</p>} {/* Display error here */}
+      {error && <p className="text-red-500 text-sm italic mt-1">{error}</p>} 
     </form>
   );
 };

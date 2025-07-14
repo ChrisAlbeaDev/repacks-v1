@@ -1,30 +1,24 @@
 import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '../lib/supabaseClient'; // Adjust path if needed
+import { supabase } from '../lib/supabaseClient'; 
 
-// --- Generic useCrud Hook ---
-// src/hooks/useCrud.ts
-// This hook provides generic CRUD operations for any Supabase table.
-// T represents the type of the entity (e.g., Player, Card, Event)
-// K represents the type of the data sent for creation/update (often a subset of T)
 interface CrudHookResult<T> {
   data: T[];
   loading: boolean;
   error: string | null;
-  add: (newItem: Omit<T, 'id' | 'inserted_at'>) => Promise<T | undefined>; // Omit auto-generated fields
+  add: (newItem: Omit<T, 'id' | 'inserted_at'>) => Promise<T | undefined>; 
   update: (id: number, updatedFields: Partial<T>) => Promise<T | undefined>;
   remove: (id: number) => Promise<void>;
-  refetch: () => Promise<void>; // Added refetch capability
-  clearError: () => void; // Added function to clear error manually
+  refetch: () => Promise<void>; 
+  clearError: () => void; 
 }
 
-// Omit 'id' and 'inserted_at' from the type for creation payloads
 type CreatePayload<T> = Omit<T, 'id' | 'inserted_at'>;
 
 export const useCrud = <T extends { id: number; inserted_at: string }>(
   tableName: string,
-  orderByColumn: keyof T = 'id' as keyof T, // Default order by 'id'
+  orderByColumn: keyof T = 'id' as keyof T, 
   ascending: boolean = true,
-  uniqueFieldName?: keyof Omit<T, 'id' | 'inserted_at'> // NEW: Optional field name for uniqueness check
+  uniqueFieldName?: keyof Omit<T, 'id' | 'inserted_at'> 
 ): CrudHookResult<T> => {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -37,11 +31,11 @@ export const useCrud = <T extends { id: number; inserted_at: string }>(
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null); // Clear previous errors on new fetch
+      setError(null); 
       const { data: fetchedData, error: fetchError } = await supabase
         .from(tableName)
         .select('*')
-        .order(orderByColumn as string, { ascending: ascending }); // Type assertion for order
+        .order(orderByColumn as string, { ascending: ascending }); 
 
       if (fetchError) {
         throw fetchError;
@@ -53,14 +47,13 @@ export const useCrud = <T extends { id: number; inserted_at: string }>(
     } finally {
       setLoading(false);
     }
-  }, [tableName, orderByColumn, ascending]); // Dependencies for useCallback
+  }, [tableName, orderByColumn, ascending]); 
 
   const add = useCallback(async (newItem: CreatePayload<T>): Promise<T | undefined> => {
     try {
       setLoading(true);
-      setError(null); // Clear previous errors on new add attempt
+      setError(null);
 
-      // NEW: Duplicate name validation
       if (uniqueFieldName) {
         const itemValue = newItem[uniqueFieldName];
         const isDuplicate = data.some(item => (item as any)[uniqueFieldName] === itemValue);
@@ -73,7 +66,7 @@ export const useCrud = <T extends { id: number; inserted_at: string }>(
 
       const { data: addedItem, error: addError } = await supabase
         .from(tableName)
-        .insert(newItem as any) // Type assertion for insert payload
+        .insert(newItem as any) 
         .select();
 
       if (addError) {
@@ -83,6 +76,7 @@ export const useCrud = <T extends { id: number; inserted_at: string }>(
         setData((prevData) => [...prevData, addedItem[0]]);
         return addedItem[0];
       }
+
       return undefined;
     } catch (err: any) {
       setError(err.message);
@@ -91,14 +85,13 @@ export const useCrud = <T extends { id: number; inserted_at: string }>(
     } finally {
       setLoading(false);
     }
-  }, [tableName, data, uniqueFieldName]); // Added 'data' and 'uniqueFieldName' to dependencies
+  }, [tableName, data, uniqueFieldName]); 
 
   const update = useCallback(async (id: number, updatedFields: Partial<T>): Promise<T | undefined> => {
     try {
       setLoading(true);
-      setError(null); // Clear previous errors on new update attempt
+      setError(null); 
 
-      // NEW: Duplicate name validation for update (if unique field is being updated)
       if (uniqueFieldName && updatedFields[uniqueFieldName] !== undefined) {
         const updatedValue = updatedFields[uniqueFieldName];
         const isDuplicate = data.some(item =>
@@ -113,7 +106,7 @@ export const useCrud = <T extends { id: number; inserted_at: string }>(
 
       const { data: updatedItem, error: updateError } = await supabase
         .from(tableName)
-        .update(updatedFields as any) // Type assertion for update payload
+        .update(updatedFields as any) 
         .eq('id', id)
         .select();
 
@@ -134,12 +127,12 @@ export const useCrud = <T extends { id: number; inserted_at: string }>(
     } finally {
       setLoading(false);
     }
-  }, [tableName, data, uniqueFieldName]); // Added 'data' and 'uniqueFieldName' to dependencies
+  }, [tableName, data, uniqueFieldName]); 
 
   const remove = useCallback(async (id: number): Promise<void> => {
     try {
       setLoading(true);
-      setError(null); // Clear previous errors on new remove attempt
+      setError(null); 
       const { error: removeError } = await supabase
         .from(tableName)
         .delete()
@@ -159,7 +152,7 @@ export const useCrud = <T extends { id: number; inserted_at: string }>(
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]); // Initial data fetch
+  }, [fetchData]);
 
   return { data, loading, error, add, update, remove, refetch: fetchData, clearError };
 };

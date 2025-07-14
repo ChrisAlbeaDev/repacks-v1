@@ -8,7 +8,6 @@ type AppView = 'home' | 'players';
 function App() {
   const [currentView, setCurrentView] = useState<AppView>('home');
 
-  // Use the custom hook to manage player data and CRUD operations
   const { players, loading, error, addPlayer, updatePlayer, deletePlayer, clearPlayerError } = usePlayers();
 
   const goToPlayersList = () => {
@@ -30,14 +29,13 @@ function App() {
             </h1>
             <Button
               onClick={goToPlayersList}
-              variant="primary" // Using the new Button component
+              variant="primary"
               size="lg"
             >
               Go to Players List
             </Button>
           </div>
         ) : (
-          // Players List Page View
           <>
             <h1 className="text-3xl font-bold text-center text-gray-800 mb-6">
               What IF OPTCG Players
@@ -49,8 +47,8 @@ function App() {
               error={error}
               onUpdatePlayer={updatePlayer}
               onDeletePlayer={deletePlayer}
-              onBack={goToHome} // Pass the back function to PlayerList
-              clearError={clearPlayerError} // Pass clearError to PlayerList
+              onBack={goToHome} 
+              clearError={clearPlayerError} 
             />
           </>
         )}

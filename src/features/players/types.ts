@@ -1,8 +1,8 @@
 export interface Player {
   id: number;
-  name: string; // Display name
-  fullName: string; // Full name for profile
+  name: string; 
+  fullName: string; 
   address: string;
   contactNumber: string;
-  inserted_at: string; // Supabase often adds this column automatically
+  inserted_at: string; 
 }

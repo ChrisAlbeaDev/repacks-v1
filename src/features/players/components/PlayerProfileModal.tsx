@@ -31,48 +31,42 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
         address: player.address,
         contactNumber: player.contactNumber,
       });
-      setIsEditing(false); // Reset to view mode when player changes
-      clearError(); // Clear error when modal opens or player changes
+      setIsEditing(false); 
+      clearError();
     }
   }, [player, clearError]);
 
   if (!player) {
-    return null; // Don't render if no player is selected
+    return null;
   }
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setEditedProfile((prev) => ({ ...prev, [name]: value }));
-    if (error) clearError(); // Clear error on typing
+    if (error) clearError(); 
   };
 
   const handleSave = async () => {
     if (!player) return;
 
-    // REMOVED: Basic validation for required fields to make them optional
-    // if (!editedProfile.fullName || !editedProfile.address || !editedProfile.contactNumber) {
-    //   // You might want to set a more specific error here
-    //   return;
-    // }
-
     const updated = await onUpdatePlayer(player.id, editedProfile);
     if (updated) {
-      setIsEditing(false); // Exit edit mode on successful save
-      onClose(); // Close modal after saving
+      setIsEditing(false); 
+      onClose();
     }
   };
 
   const handleDelete = async () => {
     if (!player) return;
-    if (window.confirm(`Are you sure you want to delete ${player.name}?`)) { // Using window.confirm for simplicity, replace with custom modal if preferred
+    if (window.confirm(`Are you sure you want to delete ${player.name}?`)) {
       await onDeletePlayer(player.id);
-      onClose(); // Close modal after deleting
+      onClose(); 
     }
   };
 
   const handleCloseModal = () => {
-    setIsEditing(false); // Ensure edit mode is off when closing
-    clearError(); // Clear any errors
+    setIsEditing(false); 
+    clearError();
     onClose();
   };
 
@@ -107,10 +101,10 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
             </p>
             <div className="flex justify-end space-x-2 mt-6">
               <Button onClick={() => setIsEditing(true)} variant="warning">
-                ✏️ Edit Profile
+                ✏️ 
               </Button>
               <Button onClick={handleDelete} variant="danger">
-                🗑️ Delete Player
+                🗑️ 
               </Button>
             </div>
           </div>
