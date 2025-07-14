@@ -1,13 +1,14 @@
+import { useState } from 'react'
 import { TextInput } from '../../../components/TextInput'; 
 import { SubmitButton } from '../../../components/SubmitButton'; 
 import type { Player } from '../types'; 
-import { useState } from 'react'
 
 interface AddPlayerFormProps {
+ 
   onAddPlayer: (newItem: Omit<Player, 'id' | 'inserted_at'>) => Promise<Player | undefined>;
   loading: boolean;
-  error: string | null;
-  clearError: () => void; 
+  error: string | null; 
+  clearError: () => void;
 }
 
 export const AddPlayerForm: React.FC<AddPlayerFormProps> = ({ onAddPlayer, loading, error, clearError }) => {
@@ -17,9 +18,9 @@ export const AddPlayerForm: React.FC<AddPlayerFormProps> = ({ onAddPlayer, loadi
     e.preventDefault();
     if (!newName.trim()) {
       clearError(); 
-      return;
     }
-   
+    
+  
     onAddPlayer({ name: newName.trim(), fullName: '', address: '', contactNumber: '' });
     setNewName('');
   };
