@@ -1,8 +1,8 @@
-import type { PlayerMop } from '../types';
-import { TextInput } from '../../../components/TextInput';
-import { SubmitButton } from '../../../components/SubmitButton';
-import { Button } from '../../../components/Button';
-import { DeleteConfirmationModal } from './DeleteConfirmationModal';
+import type { PlayerMop } from '../types'; // Adjusted path
+import { TextInput } from '../../../components/TextInput'; // Adjusted path
+import { SubmitButton } from '../../../components/SubmitButton'; // Adjusted path
+import { Button } from '../../../components/Button'; // Adjusted path
+import { DeleteConfirmationModal } from '../../../components/DeleteConfirmationModal'; // Adjusted path
 import { useState, useEffect } from 'react';
 
 interface EditDeleteModeOfPaymentModalProps {
@@ -10,7 +10,7 @@ interface EditDeleteModeOfPaymentModalProps {
   onClose: () => void;
   onUpdatePlayerMop: (id: number, updatedFields: Partial<PlayerMop>) => Promise<PlayerMop | undefined>;
   onDeletePlayerMop: (id: number) => Promise<void>;
-  loading: boolean; // This 'loading' is from usePlayerMops, for the list.
+  loading: boolean;
   error: string | null;
   clearError: () => void;
 }
@@ -20,14 +20,14 @@ export const EditDeleteModeOfPaymentModal: React.FC<EditDeleteModeOfPaymentModal
   onClose,
   onUpdatePlayerMop,
   onDeletePlayerMop,
-  error, // Use this error for display
+  error,
   clearError,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedMop, setEditedMop] = useState<Partial<PlayerMop>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isSaving, setIsSaving] = useState(false); // Local loading state for save button
-  const [isDeleting, setIsDeleting] = useState(false); // Local loading state for delete button
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
 
   useEffect(() => {
@@ -49,15 +49,15 @@ export const EditDeleteModeOfPaymentModal: React.FC<EditDeleteModeOfPaymentModal
 
   const handleSave = async () => {
     if (!mopData) return;
-    setIsSaving(true); // Set local loading to true
+    setIsSaving(true);
     try {
       const updated = await onUpdatePlayerMop(mopData.id, editedMop);
       if (updated) {
         setIsEditing(false);
-        onClose(); // Close modal, which triggers refetch in PlayerProfilePage
+        onClose();
       }
     } finally {
-      setIsSaving(false); // Always set local loading to false
+      setIsSaving(false);
     }
   };
 
@@ -68,13 +68,13 @@ export const EditDeleteModeOfPaymentModal: React.FC<EditDeleteModeOfPaymentModal
 
   const handleConfirmDelete = async () => {
     if (!mopData) return;
-    setIsDeleting(true); // Set local loading to true
+    setIsDeleting(true);
     try {
       await onDeletePlayerMop(mopData.id);
       setShowDeleteConfirm(false);
-      onClose(); // Close modal, which triggers refetch in PlayerProfilePage
+      onClose();
     } finally {
-      setIsDeleting(false); // Always set local loading to false
+      setIsDeleting(false);
     }
   };
 
@@ -159,7 +159,7 @@ export const EditDeleteModeOfPaymentModal: React.FC<EditDeleteModeOfPaymentModal
           onClose={() => setShowDeleteConfirm(false)}
           onConfirm={handleConfirmDelete}
           itemName={`${mopData.mop} (${mopData.acc_number})`}
-          loading={isDeleting} 
+          loading={isDeleting}
           error={error}
         />
       )}

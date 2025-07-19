@@ -1,21 +1,19 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import type { Player, PlayerMop } from '../types';
-import { TextInput } from '../../../components/TextInput';
-import { Button } from '../../../components/Button';
-import { DeleteConfirmationModal } from './DeleteConfirmationModal';
-import { supabase } from '../../../lib/supabaseClient';
-import { usePlayerMops } from '../../../hooks/usePlayerMops';
-import { AddModeOfPaymentModal } from './AddModeOfPaymentModal';
-import { EditDeleteModeOfPaymentModal } from './EditDeleteModeOfPaymentModal';
+import type { Player } from './types'; // Adjusted path
+import { TextInput } from '../../components/TextInput'; // Adjusted path
+import { Button } from '../../components/Button'; // Adjusted path
+import { DeleteConfirmationModal } from '../../components/DeleteConfirmationModal'; // Adjusted path
+import { supabase } from '../../lib/supabaseClient'; // Adjusted path
 
 interface PlayerProfilePageProps {
-  playerId: number;
+  playerId: string; // Changed to string (UUID)
   onBack: () => void;
-  onUpdatePlayer: (id: number, updatedFields: Partial<Player>) => Promise<Player | undefined>;
-  onDeletePlayer: (id: number) => Promise<void>;
+  onUpdatePlayer: (id: string, updatedFields: Partial<Player>) => Promise<Player | undefined>; // id is now string
+  onDeletePlayer: (id: string) => Promise<void>; // id is now string
   loading: boolean;
   error: string | null;
   clearError: () => void;
+  onManagePayments: (playerId: string, playerName: string) => void; // playerId is now string
 }
 
 export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
@@ -26,6 +24,7 @@ export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
   loading,
   error,
   clearError,
+  onManagePayments,
 }) => {
   const [playerData, setPlayerData] = useState<Player | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
@@ -35,19 +34,7 @@ export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
   const [editedProfile, setEditedProfile] = useState<Partial<Player>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const [showAddMopModal, setShowAddMopModal] = useState(false);
-  const [mopToEdit, setMopToEdit] = useState<PlayerMop | null>(null);
-
-  const {
-    playerMops,
-    loading: mopsLoading,
-    error: mopsError,
-    addPlayerMop,
-    updatePlayerMop,
-    deletePlayerMop,
-    clearPlayerMopError,
-    refetchPlayerMops,
-  } = usePlayerMops(playerId);
+  console.log(`PlayerProfilePage: Initializing for playerId: ${playerId}`);
 
   const fetchPlayer = useCallback(async () => {
     setPageLoading(true);
@@ -57,7 +44,7 @@ export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
     const { data, error: fetchError } = await supabase
       .from('players')
       .select('*')
-      .eq('id', playerId)
+      .eq('player_id', playerId) // Query by the new player_id (UUID)
       .single();
 
     if (fetchError) {
@@ -70,6 +57,7 @@ export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
         fullName: data.fullName,
         address: data.address,
         contactNumber: data.contactNumber,
+        player_id: data.player_id, // Ensure player_id is also set for editing if needed
       });
       setIsEditing(false);
     } else {
@@ -126,7 +114,8 @@ export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
   };
 
   const handleSave = async () => {
-    const updated = await onUpdatePlayer(playerData.id, editedProfile);
+    // Pass playerData.player_id (UUID) for update
+    const updated = await onUpdatePlayer(playerData.player_id, editedProfile);
     if (updated) {
       setIsEditing(false);
       fetchPlayer();
@@ -139,29 +128,10 @@ export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
   };
 
   const handleConfirmDelete = async () => {
-    await onDeletePlayer(playerData.id);
+    // Pass playerData.player_id (UUID) for delete
+    await onDeletePlayer(playerData.player_id);
     setShowDeleteConfirm(false);
     onBack();
-  };
-
-  const handleOpenAddMopModal = () => {
-    setShowAddMopModal(true);
-    clearPlayerMopError();
-  };
-
-  const handleCloseAddMopModal = () => {
-    setShowAddMopModal(false);
-    clearPlayerMopError();
-  };
-
-  const handleOpenEditMopModal = (mop: PlayerMop) => {
-    setMopToEdit(mop);
-    clearPlayerMopError();
-  };
-
-  const handleCloseEditMopModal = () => {
-    setMopToEdit(null);
-    clearPlayerMopError();
   };
 
   return (
@@ -178,6 +148,9 @@ export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
 
       {!isEditing ? (
         <div className="space-y-3">
+          <p className="text-gray-700">
+            <strong className="block text-sm text-gray-500">Player ID:</strong> {playerData.player_id} {/* Display player_id */}
+          </p>
           <p className="text-gray-700">
             <strong className="block text-sm text-gray-500">Full Name:</strong> {playerData.fullName || 'N/A'}
           </p>
@@ -198,6 +171,10 @@ export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
         </div>
       ) : (
         <div className="space-y-4">
+          {/* player_id is auto-generated, not edited via form */}
+          <p className="text-gray-700">
+            <strong className="block text-sm text-gray-500">Player ID:</strong> {playerData.player_id}
+          </p>
           <div>
             <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
             <TextInput
@@ -244,31 +221,15 @@ export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
 
       <hr className="my-6 border-gray-300" />
 
-      <h3 className="text-xl font-bold text-gray-800 mb-4">Modes of Payment</h3>
-      <Button onClick={handleOpenAddMopModal} variant="primary" className="mb-4">
-        Add Mode of Payment
-      </Button>
-
-      {mopsLoading && playerMops.length === 0 && !mopsError && <p className="text-center text-gray-600">Loading payments...</p>}
-      {mopsError && <p className="text-center text-red-500 text-sm italic mt-2">{mopsError}</p>}
-
-      {!mopsLoading && playerMops.length === 0 && !mopsError && (
-        <p className="text-center text-gray-600">No payment methods added yet.</p>
-      )}
-
-      <ul className="space-y-3">
-        {playerMops.map((mop) => (
-          <li
-            key={mop.id}
-            className="flex items-center justify-between p-3 rounded-md transition duration-200 bg-gray-50 cursor-pointer hover:bg-gray-100"
-            onClick={() => handleOpenEditMopModal(mop)}
-          >
-            <span className="text-lg text-gray-800">
-              {mop.mop.charAt(0).toUpperCase() + mop.mop.slice(1)}: {mop.acc_number}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <div className="flex justify-center mt-6">
+        <Button
+          onClick={() => onManagePayments(playerData.player_id, playerData.name)} // Pass player_id (UUID)
+          variant="primary"
+          size="lg"
+        >
+          💳 Manage Modes of Payment
+        </Button>
+      </div>
 
       {showDeleteConfirm && (
         <DeleteConfirmationModal
@@ -278,30 +239,6 @@ export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
           itemName={playerData.name}
           loading={loading}
           error={error}
-        />
-      )}
-
-      {showAddMopModal && (
-        <AddModeOfPaymentModal
-          playerId={playerId}
-          onClose={handleCloseAddMopModal}
-          onAddPlayerMop={addPlayerMop}
-          onRefetchPlayerMops={refetchPlayerMops}
-          loading={mopsLoading}
-          error={mopsError}
-          clearError={clearPlayerMopError}
-        />
-      )}
-
-      {mopToEdit && (
-        <EditDeleteModeOfPaymentModal
-          mopData={mopToEdit}
-          onClose={handleCloseEditMopModal}
-          onUpdatePlayerMop={updatePlayerMop}
-          onDeletePlayerMop={deletePlayerMop}
-          loading={mopsLoading}
-          error={mopsError}
-          clearError={clearPlayerMopError}
         />
       )}
     </>

@@ -1,4 +1,4 @@
-import { Button } from "../../../components/Button";
+import { Button } from "./Button";
 
 interface DeleteConfirmationModalProps {
   isOpen: boolean;

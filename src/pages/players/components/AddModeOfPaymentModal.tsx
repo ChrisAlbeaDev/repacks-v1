@@ -1,14 +1,15 @@
-import type { PlayerMop } from '../types';
-import { TextInput } from '../../../components/TextInput';
-import { SubmitButton } from '../../../components/SubmitButton';
-import { Button } from '../../../components/Button';
-import { useState } from 'react' 
+import type { PlayerMop } from '../types'; // Adjusted path
+import { TextInput } from '../../../components/TextInput'; // Adjusted path
+import { SubmitButton } from '../../../components/SubmitButton'; // Adjusted path
+import { Button } from '../../../components/Button'; // Adjusted path\
+import { useState } from 'react';
+
 interface AddModeOfPaymentModalProps {
-  playerId: number;
+  playerId: string; // Changed to string (UUID)
   onClose: () => void;
   onAddPlayerMop: (newItem: Omit<PlayerMop, 'id' | 'inserted_at'>) => Promise<PlayerMop | undefined>;
   onRefetchPlayerMops: () => Promise<void>;
-  loading: boolean; // This 'loading' is from usePlayerMops, for the list.
+  loading: boolean;
   error: string | null;
   clearError: () => void;
 }
@@ -18,12 +19,12 @@ export const AddModeOfPaymentModal: React.FC<AddModeOfPaymentModalProps> = ({
   onClose,
   onAddPlayerMop,
   onRefetchPlayerMops,
-  error, // Use this error for display
+  error,
   clearError,
 }) => {
   const [mopType, setMopType] = useState<PlayerMop['mop']>('gcash');
   const [accNumber, setAccNumber] = useState('');
-  const [isAdding, setIsAdding] = useState(false); // Local loading state for the add button
+  const [isAdding, setIsAdding] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,20 +33,20 @@ export const AddModeOfPaymentModal: React.FC<AddModeOfPaymentModalProps> = ({
       return;
     }
 
-    setIsAdding(true); // Set local loading to true
+    setIsAdding(true);
     try {
       const addedMop = await onAddPlayerMop({
-        player_id: playerId,
+        player_id: playerId, // Use the string player_id
         mop: mopType,
         acc_number: accNumber.trim(),
       });
       if (addedMop) {
         setAccNumber('');
-        onRefetchPlayerMops(); // Trigger refetch of the list on the parent
+        onRefetchPlayerMops();
         onClose();
       }
     } finally {
-      setIsAdding(false); // Always set local loading to false
+      setIsAdding(false);
     }
   };
 

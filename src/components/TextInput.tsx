@@ -1,6 +1,4 @@
-interface TextInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  // You can add specific props here if needed, or just extend native input props
-}
+interface TextInputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 
 export const TextInput: React.FC<TextInputProps> = ({ className, ...props }) => {
   return (

@@ -1,4 +1,5 @@
-import { Button } from './Button'; 
+import { Button } from '../components/Button'; // Adjusted path
+import React from 'react'; // Added React import
 
 interface HomePageProps {
   onGoToPlayers: () => void;
