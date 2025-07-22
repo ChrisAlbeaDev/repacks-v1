@@ -1,17 +1,19 @@
 // src/features/players/PlayerProfilePage.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '../../components/Button';
-import { Player } from './types'; // Import Player type
-import { supabase } from '../../lib/supabaseClient'; // Import supabase client
+import { Player } from './types';
+import { supabase } from '../../lib/supabaseClient';
+import { DeleteConfirmation } from '../../components/DeleteConfirmation';
 
 interface PlayerProfilePageProps {
   playerId: string;
   onBack: () => void;
-  onUpdatePlayer: (playerId: string, updatedFields: Partial<Omit<Player, 'player_id' | 'inserted_at' | 'user_id'>>) => Promise<Player | undefined>;
+  // onUpdatePlayer now accepts an optional File for profile picture AND a boolean to clear
+  onUpdatePlayer: (playerId: string, updatedFields: Partial<Omit<Player, 'player_id' | 'inserted_at' | 'user_id' | 'profile_pic_url'>>, profilePicFile: File | null, shouldClearProfilePic: boolean) => Promise<Player | undefined>;
   onDeletePlayer: (playerId: string) => Promise<void>;
-  loading: boolean; // Loading state from usePlayers
-  error: string | null; // Error state from usePlayers
-  clearError: () => void; // Function to clear errors from usePlayers
+  loading: boolean;
+  error: string | null;
+  clearError: () => void;
   onManagePayments: (playerId: string, playerName: string) => void;
 }
 
@@ -27,96 +29,198 @@ export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
 }) => {
   const [player, setPlayer] = useState<Player | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [playerDetailsLoading, setPlayerDetailsLoading] = useState(true);
+  const [playerDetailsError, setPlayerDetailsError] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Local state for editable fields, initialized from player data
+  // Local state for editable fields
   const [name, setName] = useState('');
   const [fullName, setFullName] = useState('');
   const [address, setAddress] = useState('');
   const [contactNumber, setContactNumber] = useState('');
-
-  // Fetch the specific player's data when playerId changes or players array updates
-  // Assuming App.tsx passes the 'players' array to a parent component that then passes a single player here
-  // For simplicity, let's assume we fetch the player here if not passed directly.
-  // However, the current setup implies `usePlayers` is in App.tsx, and this component
-  // receives `playerId` and `onUpdatePlayer` etc. So, we need to fetch the player data here.
-
-  // Re-fetching the player here to ensure we have the most up-to-date details for editing.
-  // This might cause a slight delay if `usePlayers` in App.tsx already has the data,
-  // but it ensures this component is self-sufficient for the selected player's data.
+  const [profilePicFile, setProfilePicFile] = useState<File | null>(null); // State for the selected file
+  const [profilePicPreview, setProfilePicPreview] = useState<string | null>(null); // State for image preview
+  const [hasRemovedPicExplicitly, setHasRemovedPicExplicitly] = useState(false); // New state to track explicit removal
+  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for file input
 
   useEffect(() => {
+    let isMounted = true;
+    console.log("PlayerProfilePage: useEffect triggered for playerId:", playerId);
+
     const fetchPlayerDetails = async () => {
-      clearError(); // Clear any previous errors
+      if (!playerId) {
+        console.log("PlayerProfilePage: No playerId provided, skipping fetch.");
+        setPlayer(null);
+        setPlayerDetailsLoading(false);
+        setPlayerDetailsError("No player ID provided.");
+        return;
+      }
+
+      setPlayerDetailsLoading(true);
+      setPlayerDetailsError(null);
+      clearError();
+
       try {
         const { data, error: fetchError } = await supabase
           .from('players')
           .select('*')
           .eq('player_id', playerId)
-          .single(); // Use .single() to get a single row
+          .single();
+
+        if (!isMounted) return;
 
         if (fetchError) {
           throw fetchError;
         }
 
         if (data) {
+          console.log("PlayerProfilePage: Fetched player data:", data);
           setPlayer(data);
-          // Initialize form fields with player's current data
           setName(data.name);
           setFullName(data.fullName || '');
           setAddress(data.address || '');
           setContactNumber(data.contactNumber || '');
+          setProfilePicPreview(data.profile_pic_url || null); // Set initial preview from existing URL
+          setProfilePicFile(null); // Clear any previously selected file
+          setHasRemovedPicExplicitly(false); // Reset this flag on new player fetch
         } else {
-          setPlayer(null); // Player not found
-          // setError("Player not found."); // You might want to set a specific error
+          console.log("PlayerProfilePage: Player not found for ID:", playerId);
+          setPlayer(null);
+          setPlayerDetailsError("Player not found.");
         }
       } catch (err: any) {
-        console.error("Error fetching player details:", err.message);
-        // setError(err.message); // Set error if fetching fails
+        if (!isMounted) return;
+        console.error("PlayerProfilePage: Error fetching player details:", err.message);
+        setPlayerDetailsError(err.message);
         setPlayer(null);
+      } finally {
+        if (isMounted) {
+          setPlayerDetailsLoading(false);
+        }
       }
     };
 
-    if (playerId) {
-      fetchPlayerDetails();
+    fetchPlayerDetails();
+
+    return () => {
+      isMounted = false;
+      console.log("PlayerProfilePage: useEffect cleanup for playerId:", playerId);
+    };
+  }, [playerId, clearError]);
+
+  // Handle file selection for profile picture
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setProfilePicFile(file);
+      setProfilePicPreview(URL.createObjectURL(file)); // Create a local URL for preview
+      clearError();
+      setHasRemovedPicExplicitly(false); // If a new file is selected, user is not clearing
     }
-  }, [playerId, clearError]); // Depend on playerId and clearError
+  };
+
+  // Function to remove the selected/existing profile picture
+  const handleRemoveProfilePic = () => {
+    setProfilePicFile(null); // Clear the selected file
+    setProfilePicPreview(null); // Clear the preview
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''; // Clear the file input
+    }
+    setHasRemovedPicExplicitly(true); // Set flag indicating explicit removal
+  };
+
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
+    setPlayerDetailsError(null);
 
-    if (!player) return;
+    if (!player) {
+      setPlayerDetailsError("No player data to update.");
+      return;
+    }
 
-    const updatedFields: Partial<Omit<Player, 'player_id' | 'inserted_at' | 'user_id'>> = {
-      name: name.trim(), // Include name
+    const updatedFields: Partial<Omit<Player, 'player_id' | 'inserted_at' | 'user_id' | 'profile_pic_url'>> = {
+      name: name.trim(),
       fullName: fullName.trim() || null,
       address: address.trim() || null,
       contactNumber: contactNumber.trim() || null,
     };
 
-    const updated = await onUpdatePlayer(playerId, updatedFields);
+    // Determine if the profile picture should be cleared in the database
+    // This is true if the user explicitly clicked "Remove" AND no new file was selected.
+    const shouldClear = hasRemovedPicExplicitly && profilePicFile === null;
+
+    // Pass the profilePicFile and shouldClear flag to onUpdatePlayer
+    const updated = await onUpdatePlayer(playerId, updatedFields, profilePicFile, shouldClear);
     if (updated) {
-      setPlayer(updated); // Update local player state with returned data
-      setIsEditing(false); // Exit edit mode on success
-    }
-    // Error handling is managed by usePlayers and propagated via 'error' prop
-  };
-
-  const handleDelete = async () => {
-    if (window.confirm(`Are you sure you want to delete ${player?.name}? This action cannot be undone.`)) {
-      await onDeletePlayer(playerId);
-      // If delete is successful, navigate back to the players list
-      if (!error) { // Check error state after async operation
-        onBack();
-      }
+      setPlayer(updated);
+      setIsEditing(false);
+      setProfilePicFile(null); // Clear file input state after successful upload/update
+      setHasRemovedPicExplicitly(false); // Reset this flag after successful update
+      // The profilePicPreview will be updated by the useEffect if 'updated' contains new URL
     }
   };
 
-  if (loading || !player) { // Use the 'loading' prop from usePlayers for overall loading state
+  const confirmDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+  };
+
+  const executeDelete = async () => {
+    setShowDeleteConfirm(false);
+    clearError();
+    setPlayerDetailsError(null);
+    await onDeletePlayer(playerId);
+    if (!error) {
+      onBack();
+    } else {
+      setPlayerDetailsError(error);
+    }
+  };
+
+  const overallLoading = loading || playerDetailsLoading;
+  const overallError = error || playerDetailsError;
+
+  // Function to get the cache-busted URL
+  const getCacheBustedImageUrl = (url: string | null) => {
+    if (!url) return null;
+    // Append a timestamp to the URL to bust the cache
+    // Use player.inserted_at or Date.now() if player has an 'updated_at' field,
+    // otherwise, Date.now() is a good general purpose cache buster for images
+    return `${url}?t=${Date.now()}`;
+  };
+
+
+  if (overallLoading) {
     return (
       <div className="text-center text-gray-600">
-        {loading ? 'Loading player details...' : 'Player not found.'}
-        {error && <p className="text-red-500 mt-2">{error}</p>}
+        Loading player details...
+      </div>
+    );
+  }
+
+  if (overallError) {
+    return (
+      <div className="text-center">
+        <p className="text-red-500 mt-2">Error: {overallError}</p>
+        <Button onClick={onBack} variant="secondary" className="mt-4">
+          Back to Players
+        </Button>
+      </div>
+    );
+  }
+
+  if (!player) {
+    return (
+      <div className="text-center">
+        <p className="text-red-500">Player not found.</p>
+        <Button onClick={onBack} variant="primary" className="mt-4">
+          Go to Players List
+        </Button>
       </div>
     );
   }
@@ -125,25 +229,59 @@ export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
     <div className="flex flex-col space-y-6">
       <h2 className="text-2xl font-bold text-gray-800 text-center">Player Profile</h2>
 
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-          <strong className="font-bold">Error:</strong>
-          <span className="block sm:inline"> {error}</span>
-        </div>
-      )}
-
       {!isEditing ? (
         <div className="bg-gray-50 p-6 rounded-lg shadow-md space-y-3">
+          {player.profile_pic_url && (
+            <div className="flex justify-center mb-4">
+              <img
+                src={getCacheBustedImageUrl(player.profile_pic_url) || ''} // Use cache-busted URL
+                alt={`${player.name}'s profile`}
+                className="w-32 h-32 rounded-full object-cover border-2 border-blue-400"
+                onError={(e) => { e.currentTarget.src = 'https://placehold.co/128x128/aabbcc/ffffff?text=No+Image'; }} // Fallback
+              />
+            </div>
+          )}
           <p className="text-gray-700"><strong>Player ID:</strong> <span className="font-mono break-all">{player.player_id}</span></p>
-          <p className="text-gray-700"><strong>Name:</strong> {player.name}</p> {/* Display Name */}
+          <p className="text-gray-700"><strong>Name:</strong> {player.name}</p>
           <p className="text-gray-700"><strong>Full Name:</strong> {player.fullName || 'N/A'}</p>
           <p className="text-gray-700"><strong>Address:</strong> {player.address || 'N/A'}</p>
           <p className="text-gray-700"><strong>Contact Number:</strong> {player.contactNumber || 'N/A'}</p>
           <p className="text-gray-700"><strong>Created At:</strong> {new Date(player.inserted_at).toLocaleString()}</p>
-          <p className="text-gray-700"><strong>User ID:</strong> <span className="font-mono break-all">{player.user_id}</span></p> {/* Display User ID */}
+          <p className="text-gray-700"><strong>User ID:</strong> <span className="font-mono break-all">{player.user_id}</span></p>
         </div>
       ) : (
         <form onSubmit={handleUpdate} className="bg-gray-50 p-6 rounded-lg shadow-md space-y-4">
+          <div className="flex flex-col items-center mb-4">
+            {profilePicPreview ? (
+              <div className="relative">
+                <img
+                  src={profilePicPreview}
+                  alt="Profile Preview"
+                  className="w-32 h-32 rounded-full object-cover border-2 border-blue-400"
+                />
+                <Button
+                  onClick={handleRemoveProfilePic}
+                  variant="danger"
+                  className="absolute bottom-0 right-0 p-1 rounded-full text-xs"
+                >
+                  &times;
+                </Button>
+              </div>
+            ) : (
+              <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
+                No Image
+              </div>
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              ref={fileInputRef}
+              className="mt-4 text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              disabled={overallLoading}
+            />
+          </div>
+
           <div>
             <label htmlFor="editName" className="block text-sm font-medium text-gray-700 mb-1">
               Name:
@@ -155,6 +293,7 @@ export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              disabled={overallLoading}
             />
           </div>
           <div>
@@ -167,6 +306,7 @@ export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
               className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
+              disabled={overallLoading}
             />
           </div>
           <div>
@@ -179,6 +319,7 @@ export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
               className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
+              disabled={overallLoading}
             />
           </div>
           <div>
@@ -191,14 +332,15 @@ export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
               className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={contactNumber}
               onChange={(e) => setContactNumber(e.target.value)}
+              disabled={overallLoading}
             />
           </div>
           <div className="flex justify-end space-x-3 mt-6">
-            <Button type="button" variant="secondary" onClick={() => setIsEditing(false)} disabled={loading}>
+            <Button type="button" variant="secondary" onClick={() => setIsEditing(false)} disabled={overallLoading}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary" loading={loading} disabled={loading}>
-              {loading ? 'Saving...' : 'Save Changes'}
+            <Button type="submit" variant="primary" loading={overallLoading} disabled={overallLoading}>
+              {overallLoading ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
         </form>
@@ -213,7 +355,7 @@ export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
             Edit Player
           </Button>
         )}
-        <Button onClick={handleDelete} variant="danger" className="flex-1" disabled={loading}>
+        <Button onClick={confirmDelete} variant="danger" className="flex-1" disabled={overallLoading}>
           Delete Player
         </Button>
       </div>
@@ -221,6 +363,15 @@ export const PlayerProfilePage: React.FC<PlayerProfilePageProps> = ({
       <Button onClick={() => onManagePayments(playerId, player.name)} variant="secondary" className="w-full mt-4">
         Manage Payments
       </Button>
+
+      {showDeleteConfirm && (
+        <DeleteConfirmation
+          message={`Are you sure you want to delete player "${player.name}"? This action cannot be undone.`}
+          onConfirm={executeDelete}
+          onCancel={cancelDelete}
+          loading={overallLoading}
+        />
+      )}
     </div>
   );
 };

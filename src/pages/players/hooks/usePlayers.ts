@@ -46,61 +46,20 @@ export const usePlayers = ({ isAuthenticated, currentUserId }: UsePlayersProps) 
     } finally {
       setLoading(false);
     }
-  }, []); // No dependencies, as it takes userIdToFetch as argument
+  }, []);
 
-  // Effect to handle initial session and subscribe to auth changes
   useEffect(() => {
-    let isMounted = true; // Flag to prevent state updates on unmounted component
-    console.log("usePlayers: useEffect [initial] mounted."); // Diagnostic log
-
-    // Initial session fetch
-    const getInitialSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession(); // Corrected: use getSession()
-        if (isMounted) {
-          console.log("Initial session fetched:", session?.user?.id); // Diagnostic log
-          // setUserId(session?.user?.id || null); // This line is no longer needed here as userId is a prop
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          console.error("Error fetching initial Supabase session:", err.message);
-          setError(err.message);
-          setLoading(false); // Stop loading if initial session fetch fails
-        }
-      }
-    };
-
-    getInitialSession();
-
-    // Subscribe to ongoing auth state changes
-    // This part is now handled by App.tsx passing down isAuthenticated and currentUserId
-    // so this specific subscription within usePlayers is redundant if App.tsx is the source of truth for auth state.
-    // However, if you want usePlayers to be more self-contained for auth state, keep it.
-    // For now, let's rely on props from App.tsx as per the last fix.
-    // Removing the subscription from here to simplify and avoid potential race conditions
-    // as App.tsx is already handling auth state and passing it down.
-
-    return () => {
-      isMounted = false;
-      console.log("usePlayers: useEffect [initial] unmounted."); // Diagnostic log
-    };
-  }, []); // Run once on mount
-
-  // Effect to re-fetch players whenever isAuthenticated or currentUserId changes
-  useEffect(() => {
-    console.log("usePlayers: useEffect [auth state] triggered. isAuthenticated:", isAuthenticated, "currentUserId:", currentUserId); // Diagnostic log
+    console.log("usePlayers: useEffect [auth state] triggered. isAuthenticated:", isAuthenticated, "currentUserId:", currentUserId);
     if (isAuthenticated && currentUserId) {
       fetchPlayers(currentUserId);
     } else {
-      // If not authenticated or no user ID, clear players and stop loading
       setPlayers([]);
       setLoading(false);
-      setError(null); // Clear any previous errors when logging out
+      setError(null);
     }
-  }, [isAuthenticated, currentUserId, fetchPlayers]); // Depend on auth state and memoized fetchPlayers
+  }, [isAuthenticated, currentUserId, fetchPlayers]);
 
-  // Function to add a new player
-  const addPlayer = useCallback(async (newPlayer: Omit<Player, 'player_id' | 'inserted_at' | 'user_id'>) => {
+  const addPlayer = useCallback(async (newPlayer: Omit<Player, 'player_id' | 'inserted_at' | 'user_id' | 'profile_pic_url'>) => {
     if (!currentUserId) {
       setError('Not authenticated. Please log in to add a player.');
       return undefined;
@@ -111,14 +70,15 @@ export const usePlayers = ({ isAuthenticated, currentUserId }: UsePlayersProps) 
     try {
       // Generate a new UUID for player_id on the client side
       const generatedPlayerId = crypto.randomUUID();
-      console.log("Generated player_id:", generatedPlayerId); // Diagnostic log
+      console.log("Generated player_id:", generatedPlayerId);
+      console.log("addPlayer: Attempting to insert with currentUserId:", currentUserId); // NEW DIAGNOSTIC LOG
 
       const { data, error: insertError } = await supabase
         .from('players')
         .insert({
           ...newPlayer,
           player_id: generatedPlayerId, // Include the generated player_id
-          user_id: currentUserId
+          user_id: currentUserId // Ensure this is the correct user ID
         })
         .select();
 
@@ -127,7 +87,7 @@ export const usePlayers = ({ isAuthenticated, currentUserId }: UsePlayersProps) 
       }
       const addedPlayer = data ? data[0] : undefined;
       if (addedPlayer) {
-        setPlayers((prev) => [addedPlayer, ...prev]); // Add to the beginning of the list
+        setPlayers((prev) => [addedPlayer, ...prev]);
       }
       return addedPlayer;
     } catch (err: any) {
@@ -137,10 +97,15 @@ export const usePlayers = ({ isAuthenticated, currentUserId }: UsePlayersProps) 
     } finally {
       setLoading(false);
     }
-  }, [currentUserId]); // Depend on currentUserId
+  }, [currentUserId]);
 
-  // Function to update an existing player
-  const updatePlayer = useCallback(async (playerId: string, updatedFields: Partial<Omit<Player, 'player_id' | 'inserted_at' | 'user_id'>>) => {
+  // Function to update an existing player, now accepting an optional profilePicFile
+  const updatePlayer = useCallback(async (
+    playerId: string,
+    updatedFields: Partial<Omit<Player, 'player_id' | 'inserted_at' | 'user_id' | 'profile_pic_url'>>,
+    profilePicFile: File | null, // New parameter for profile picture file
+    shouldClearProfilePic: boolean // New parameter to explicitly signal clearing
+  ) => {
     if (!currentUserId) {
       setError('Not authenticated. Please log in to update a player.');
       return undefined;
@@ -148,13 +113,61 @@ export const usePlayers = ({ isAuthenticated, currentUserId }: UsePlayersProps) 
 
     setLoading(true);
     setError(null);
+    let newProfilePicUrl: string | null = null; // Changed to null to align with type 'string | null'
+
     try {
-      // RLS should ensure only the owner can update
+      if (profilePicFile) {
+        const fileExtension = profilePicFile.name.split('.').pop();
+        const filePath = `${currentUserId}/${playerId}.${fileExtension}`; // Unique path per player per user
+        const bucketName = 'profile-pics'; // Define your Supabase Storage bucket name
+
+        // Upload the file
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from(bucketName)
+          .upload(filePath, profilePicFile, {
+            cacheControl: '3600',
+            upsert: true, // Overwrite if file with same name exists
+          });
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        // Get the public URL
+        const { data: publicUrlData } = supabase.storage
+          .from(bucketName)
+          .getPublicUrl(filePath);
+
+        if (publicUrlData) {
+          newProfilePicUrl = publicUrlData.publicUrl;
+          console.log("Profile picture uploaded. Public URL:", newProfilePicUrl);
+        }
+      } else if (shouldClearProfilePic) {
+        // If profilePicFile is null AND shouldClearProfilePic is true,
+        // it means the user explicitly cleared the profile picture in the UI.
+        newProfilePicUrl = null;
+      }
+      // If profilePicFile is null AND shouldClearProfilePic is false,
+      // newProfilePicUrl remains null (its initial value), meaning no change to the URL in DB.
+
+
+      // Prepare fields for database update
+      const fieldsToUpdate: Partial<Player> = { ...updatedFields };
+      // Only add profile_pic_url to update if it was changed or explicitly cleared
+      // The condition `newProfilePicUrl !== null` is now sufficient because
+      // it's either the new URL, or explicitly null if cleared, or still null if no change.
+      // If it's still null and there was no explicit clear, we don't include it in update.
+      if (profilePicFile || shouldClearProfilePic) { // If a file was selected OR explicit clear was requested
+        fieldsToUpdate.profile_pic_url = newProfilePicUrl;
+      }
+
+
+      // Update the player record in the database
       const { data, error: updateError } = await supabase
         .from('players')
-        .update(updatedFields)
+        .update(fieldsToUpdate)
         .eq('player_id', playerId)
-        .eq('user_id', currentUserId) // Explicitly filter by user_id for safety with RLS
+        .eq('user_id', currentUserId) // This is the crucial part for RLS
         .select();
 
       if (updateError) {
@@ -168,15 +181,14 @@ export const usePlayers = ({ isAuthenticated, currentUserId }: UsePlayersProps) 
       }
       return updatedPlayer;
     } catch (err: any) {
-      console.error('Error updating player:', err.message);
+      console.error('Error updating player or uploading profile pic:', err.message);
       setError(err.message);
       return undefined;
     } finally {
       setLoading(false);
     }
-  }, [currentUserId]); // Depend on currentUserId
+  }, [currentUserId]);
 
-  // Function to delete a player
   const deletePlayer = useCallback(async (playerId: string) => {
     if (!currentUserId) {
       setError('Not authenticated. Please log in to delete a player.');
@@ -186,24 +198,58 @@ export const usePlayers = ({ isAuthenticated, currentUserId }: UsePlayersProps) 
     setLoading(true);
     setError(null);
     try {
-      // RLS should ensure only the owner can delete
+      // Fetch player to get profile_pic_url before deleting record
+      const { data: playerToDelete, error: fetchPlayerError } = await supabase
+        .from('players')
+        .select('profile_pic_url')
+        .eq('player_id', playerId)
+        .eq('user_id', currentUserId)
+        .single();
+
+      if (fetchPlayerError && fetchPlayerError.code !== 'PGRST116') { // PGRST116 means no rows found
+        throw fetchPlayerError;
+      }
+
+      // Delete the player record
       const { error: deleteError } = await supabase
         .from('players')
         .delete()
         .eq('player_id', playerId)
-        .eq('user_id', currentUserId); // Explicitly filter by user_id for safety with RLS
+        .eq('user_id', currentUserId);
 
       if (deleteError) {
         throw deleteError;
       }
+
+      // If there was a profile picture, delete it from storage
+      if (playerToDelete?.profile_pic_url) {
+        const urlParts = playerToDelete.profile_pic_url.split('/');
+        const fileName = urlParts.pop(); // Get the file name (e.g., player_id.jpg)
+        const userIdSegment = urlParts.pop(); // Get the user ID segment
+        const bucketName = 'profile-pics'; // Your bucket name
+
+        if (fileName && userIdSegment) {
+          const filePath = `${userIdSegment}/${fileName}`;
+          console.log("Attempting to delete profile pic from storage:", filePath);
+          const { error: deleteStorageError } = await supabase.storage
+            .from(bucketName)
+            .remove([filePath]);
+
+          if (deleteStorageError) {
+            console.warn('Warning: Could not delete profile picture from storage:', deleteStorageError.message);
+            // Don't throw, as the player record itself was deleted successfully
+          }
+        }
+      }
+
       setPlayers((prev) => prev.filter((player) => player.player_id !== playerId));
     } catch (err: any) {
-      console.error('Error deleting player:', err.message);
+      console.error('Error deleting player or profile pic:', err.message);
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [currentUserId]); // Depend on currentUserId
+  }, [currentUserId]);
 
   return {
     players,

@@ -1,5 +1,5 @@
 // src/pages/PlayersPage.tsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '../components/Button';
 import { PlayerList } from '../pages/players/components/PlayerList';
 import { AddPlayerModal } from '../pages/players/components/AddPlayerModal';
@@ -19,6 +19,9 @@ interface PlayersPageProps {
   clearPlayerError: () => void;
 }
 
+// Define valid sort keys for Player
+type PlayerSortKey = 'name' | 'fullName' | 'inserted_at' | ''; // Added empty string for no sort
+
 export const PlayersPage: React.FC<PlayersPageProps> = ({
   onBack,
   onViewPlayerProfile,
@@ -32,15 +35,58 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({
   clearPlayerError,
 }) => {
   const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortKey, setSortKey] = useState<PlayerSortKey>('inserted_at'); // Default sort by creation date
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc'); // Default descending
 
   const handleOpenAddPlayerModal = () => {
     setShowAddPlayerModal(true);
-    clearPlayerError(); // Clear any previous errors when opening the modal
+    clearPlayerError();
   };
 
   const handleCloseAddPlayerModal = () => {
     setShowAddPlayerModal(false);
   };
+
+  // Memoize filtered and sorted players to optimize performance
+  const filteredAndSortedPlayers = useMemo(() => {
+    let filtered = players;
+
+    // 1. Filter by search term
+    if (searchTerm) {
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      filtered = players.filter(player =>
+        player.name.toLowerCase().includes(lowerCaseSearchTerm) ||
+        (player.fullName && player.fullName.toLowerCase().includes(lowerCaseSearchTerm)) ||
+        (player.address && player.address.toLowerCase().includes(lowerCaseSearchTerm)) ||
+        (player.contactNumber && player.contactNumber.toLowerCase().includes(lowerCaseSearchTerm))
+      );
+    }
+
+    // 2. Sort the filtered players
+    if (sortKey) {
+      filtered.sort((a, b) => {
+        let valA: string | number = '';
+        let valB: string | number = '';
+
+        if (sortKey === 'inserted_at') {
+          valA = new Date(a.inserted_at).getTime();
+          valB = new Date(b.inserted_at).getTime();
+        } else {
+          // For 'name' or 'fullName'
+          valA = (a[sortKey as keyof Player] || '').toString().toLowerCase();
+          valB = (b[sortKey as keyof Player] || '').toString().toLowerCase();
+        }
+
+        if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+        if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [players, searchTerm, sortKey, sortDirection]);
+
 
   return (
     <div className="flex flex-col space-y-4">
@@ -80,10 +126,16 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({
       )}
 
       <PlayerList
-        players={players}
+        players={filteredAndSortedPlayers} // Pass the processed list
         onViewPlayerProfile={onViewPlayerProfile}
         onDeletePlayer={deletePlayer}
         isAuthenticated={isAuthenticated}
+        searchTerm={searchTerm} // Pass search term
+        onSearchChange={setSearchTerm} // Pass search handler
+        sortKey={sortKey} // Pass sort key
+        onSortChange={setSortKey} // Pass sort key handler
+        sortDirection={sortDirection} // Pass sort direction
+        onSortDirectionChange={setSortDirection} // Pass sort direction handler
       />
 
       <Button onClick={onBack} variant="secondary" className="w-full">

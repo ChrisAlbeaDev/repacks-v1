@@ -1,12 +1,15 @@
 // src/App.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { HomePage, PlayersPage, AuthPage } from './pages'; // Added AuthPage
 import { PlayerProfilePage, PlayerPaymentsPage } from './pages/players';
 import { usePlayers } from './pages/players/hooks/usePlayers'; // Will now accept props
+// Removed useCards import as per user's previous request to remove cards functionality
 import { Button } from './components/Button';
 import { supabase, subscribeToSupabaseAuth, getSupabaseAuthState } from './lib/supabaseClient'; // Import new auth functions
+import { Layout } from './components/Layout'; // Import Layout component
+import { Router } from './components/Router'; // Import Router component
 
-type AppView = 'auth' | 'home' | 'players' | 'playerProfile' | 'playerPayments';
+type AppView = 'auth' | 'home' | 'players' | 'playerProfile' | 'playerPayments'; // Removed 'cards' view
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>('auth'); // Start at auth page
@@ -21,12 +24,56 @@ function App() {
   // Pass isAuthenticated and userId to usePlayers
   const { players, loading, error, addPlayer, updatePlayer, deletePlayer, clearPlayerError } = usePlayers({ isAuthenticated, currentUserId: userId });
 
-  useEffect(() => {
-    // This effect runs once on mount to set initial auth state and subscribe.
-    // It should NOT have currentView in its dependency array to prevent re-running
-    // and overriding navigation when currentView changes.
+  // Removed useCards hook initialization as per user's request
 
-    let isMounted = true; // Flag to prevent state updates on unmounted component
+  // Memoized navigation functions
+  const handleAuthSuccess = useCallback(() => {
+    setCurrentView('home'); // Redirect to home after successful login/signup
+  }, []);
+
+  const goToPlayersList = useCallback(() => {
+    setCurrentView('players');
+    setSelectedPlayerId(null);
+    setSelectedPlayerName(null);
+  }, []);
+
+  // Removed goToCardsList as per user's request
+
+  const goToHome = useCallback(() => {
+    setCurrentView('home');
+    setSelectedPlayerId(null);
+    setSelectedPlayerName(null);
+  }, []);
+
+  const goToPlayerProfile = useCallback((id: string) => {
+    setSelectedPlayerId(id);
+    setCurrentView('playerProfile');
+  }, []);
+
+  const goToPlayerPayments = useCallback((id: string, name: string) => {
+    setSelectedPlayerId(id);
+    setSelectedPlayerName(name);
+    setCurrentView('playerPayments');
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    setAuthLoading(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      console.log("Logged out successfully.");
+      setCurrentView('auth'); // Redirect to auth page after logout
+    } catch (err: any) {
+      console.error("Logout error:", err.message);
+      setAuthError(err.message);
+    } finally {
+      setAuthLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    console.log("App.tsx: useEffect [auth setup] triggered."); // Diagnostic log
 
     // Subscribe to Supabase auth state changes
     const unsubscribe = subscribeToSupabaseAuth((state) => {
@@ -40,6 +87,7 @@ function App() {
 
       // Redirect logic: Only redirect if the current view is 'auth' AND a session exists,
       // OR if no session exists AND the current view is NOT 'auth'.
+      // This prevents overriding user's navigation to other pages.
       if (state.session && currentView === 'auth') {
         console.log("App.tsx: Redirecting from auth to home due to session (from subscription)."); // Diagnostic log
         setCurrentView('home');
@@ -59,6 +107,7 @@ function App() {
       setUserId(initialState.user?.id || null);
 
       // Initial view setting based on session
+      // This part should only run once on initial mount to set the starting view
       if (!initialState.session) {
         console.log("App.tsx: Initial state - no session, setting view to auth."); // Diagnostic log
         setCurrentView('auth');
@@ -75,60 +124,12 @@ function App() {
     }
   }, []); // Empty dependency array: runs only once on component mount
 
-  const handleAuthSuccess = () => {
-    console.log("App.tsx: handleAuthSuccess called, setting view to home."); // Diagnostic log
-    setCurrentView('home'); // Redirect to home after successful login/signup
-  };
-
-  const goToPlayersList = () => {
-    console.log("App.tsx: goToPlayersList called, setting view to players."); // Diagnostic log
-    setCurrentView('players');
-    setSelectedPlayerId(null);
-    setSelectedPlayerName(null);
-  };
-
-  const goToHome = () => {
-    console.log("App.tsx: goToHome called, setting view to home."); // Diagnostic log
-    setCurrentView('home');
-    setSelectedPlayerId(null);
-    setSelectedPlayerName(null);
-  };
-
-  const goToPlayerProfile = (id: string) => {
-    console.log("App.tsx: goToPlayerProfile called for ID:", id); // Diagnostic log
-    setSelectedPlayerId(id);
-    setCurrentView('playerProfile');
-  };
-
-  const goToPlayerPayments = (id: string, name: string) => {
-    console.log("App.tsx: goToPlayerPayments called for ID:", id, "Name:", name); // Diagnostic log
-    setSelectedPlayerId(id);
-    setSelectedPlayerName(name);
-    setCurrentView('playerPayments');
-  };
-
-  const handleLogout = async () => {
-    console.log("App.tsx: handleLogout called."); // Diagnostic log
-    setAuthLoading(true);
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      console.log("Logged out successfully.");
-      setCurrentView('auth'); // Redirect to auth page after logout
-    } catch (err: any) {
-      console.error("Logout error:", err.message);
-      setAuthError(err.message);
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
   if (authLoading) {
     console.log("App.tsx: Rendering authLoading state."); // Diagnostic log
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4 font-sans">
         <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md text-center">
-          <p className="text-700 text-lg">Loading authentication state...</p>
+          <p className="text-gray-700 text-lg">Loading authentication state...</p>
         </div>
       </div>
     );
@@ -136,96 +137,34 @@ function App() {
 
   console.log("App.tsx: Rendering currentView:", currentView); // Diagnostic log
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4 font-sans">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-        {authError && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-            <strong className="font-bold">Authentication Error:</strong>
-            <span className="block sm:inline"> {authError}</span>
-          </div>
-        )}
-
-        {isAuthenticated && userId && (
-          <div className="text-sm text-gray-600 mb-4 text-center">
-            Logged in as: <span className="font-mono text-blue-700 break-all">{userId}</span>
-            <Button onClick={handleLogout} variant="secondary" className="ml-4 px-3 py-1 text-sm">
-              Logout
-            </Button>
-          </div>
-        )}
-
-        {(() => {
-          switch (currentView) {
-            case 'auth':
-              return <AuthPage onAuthSuccess={handleAuthSuccess} />;
-            case 'home':
-              return <HomePage onGoToPlayers={goToPlayersList} />;
-            case 'players':
-              console.log("App.tsx: Switching to PlayersPage. isAuthenticated:", isAuthenticated, "loading:", loading, "error:", error, "players count:", players.length); // Diagnostic log
-              return (
-                <PlayersPage
-                  onBack={goToHome}
-                  onViewPlayerProfile={goToPlayerProfile}
-                  isAuthenticated={isAuthenticated}
-                  authError={authError}
-                  players={players} // Pass players from usePlayers
-                  loading={loading} // Pass loading from usePlayers
-                  error={error} // Pass error from usePlayers
-                  addPlayer={addPlayer} // Pass addPlayer from usePlayers
-                  deletePlayer={deletePlayer} // Pass deletePlayer from usePlayers
-                  clearPlayerError={clearPlayerError} // Pass clearPlayerError from usePlayers
-                />
-              );
-            case 'playerProfile':
-              console.log("App.tsx: Switching to PlayerProfilePage. Selected Player ID:", selectedPlayerId); // Diagnostic log
-              if (selectedPlayerId === null) {
-                return (
-                  <div className="text-center">
-                    <p className="text-red-500">No player selected.</p>
-                    <Button onClick={goToPlayersList} variant="primary" className="mt-4">
-                      Go to Players List
-                    </Button>
-                  </div>
-                );
-              }
-              return (
-                <PlayerProfilePage
-                  playerId={selectedPlayerId}
-                  onBack={goToPlayersList}
-                  onUpdatePlayer={updatePlayer}
-                  onDeletePlayer={deletePlayer}
-                  loading={loading}
-                  error={error}
-                  clearError={clearPlayerError}
-                  onManagePayments={goToPlayerPayments}
-                />
-              );
-            case 'playerPayments':
-              console.log("App.tsx: Switching to PlayerPaymentsPage. Selected Player ID:", selectedPlayerId); // Diagnostic log
-              if (selectedPlayerId === null || selectedPlayerName === null) {
-                return (
-                  <div className="text-center">
-                    <p className="text-red-500">No player selected for payments.</p>
-                    <Button onClick={goToPlayersList} variant="primary" className="mt-4">
-                      Go to Players List
-                    </Button>
-                  </div>
-                );
-              }
-              return (
-                <PlayerPaymentsPage
-                  playerId={selectedPlayerId}
-                  playerName={selectedPlayerName}
-                  onBack={() => goToPlayerProfile(selectedPlayerId)}
-                />
-              );
-            default:
-              console.log("App.tsx: Default case, returning AuthPage."); // Diagnostic log
-              return <AuthPage onAuthSuccess={handleAuthSuccess} />; // Default to auth page
-          }
-        })()}
-      </div>
-    </div>
+    <Layout
+      isAuthenticated={isAuthenticated}
+      userId={userId}
+      authError={authError}
+      onLogout={handleLogout}
+    >
+      <Router
+        currentView={currentView}
+        isAuthenticated={isAuthenticated}
+        authError={authError}
+        players={players}
+        playersLoading={loading} // Use 'loading' directly from usePlayers
+        playersError={error} // Use 'error' directly from usePlayers
+        addPlayer={addPlayer}
+        updatePlayer={updatePlayer}
+        deletePlayer={deletePlayer}
+        clearPlayerError={clearPlayerError}
+        // Removed cards related props
+        onAuthSuccess={handleAuthSuccess}
+        goToPlayersList={goToPlayersList}
+        // Removed goToCardsList
+        goToHome={goToHome}
+        goToPlayerProfile={goToPlayerProfile}
+        goToPlayerPayments={goToPlayerPayments}
+        selectedPlayerId={selectedPlayerId}
+        selectedPlayerName={selectedPlayerName}
+      />
+    </Layout>
   );
 }
 
