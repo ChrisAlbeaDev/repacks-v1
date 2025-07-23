@@ -39,6 +39,10 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({
   const [sortKey, setSortKey] = useState<PlayerSortKey>('inserted_at'); // Default sort by creation date
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc'); // Default descending
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [playersPerPage] = useState(5); // You can adjust this number
+
   const handleOpenAddPlayerModal = () => {
     setShowAddPlayerModal(true);
     clearPlayerError();
@@ -87,6 +91,24 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({
     return filtered;
   }, [players, searchTerm, sortKey, sortDirection]);
 
+  // Pagination logic
+  const indexOfLastPlayer = currentPage * playersPerPage;
+  const indexOfFirstPlayer = indexOfLastPlayer - playersPerPage;
+  const currentPlayers = filteredAndSortedPlayers.slice(indexOfFirstPlayer, indexOfLastPlayer);
+
+  const totalPages = Math.ceil(filteredAndSortedPlayers.length / playersPerPage);
+
+  const paginate = (pageNumber: number) => {
+    if (pageNumber < 1 || pageNumber > totalPages) return; // Prevent invalid page numbers
+    setCurrentPage(pageNumber);
+  };
+
+  // Reset page to 1 if filters/sort change
+  // This ensures you don't end up on an empty page after filtering
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortKey, sortDirection]);
+
 
   return (
     <div className="flex flex-col space-y-4">
@@ -121,21 +143,26 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({
       {loading && players.length === 0 && <p className="text-center text-gray-600">Loading players...</p>}
       {error && <p className="text-center text-red-500">Error: {error}</p>}
 
-      {!loading && players.length === 0 && !error && (
+      {!loading && players.length === 0 && !error && !searchTerm && (
         <p className="text-center text-gray-600">No players found. Add one to get started!</p>
       )}
 
       <PlayerList
-        players={filteredAndSortedPlayers} // Pass the processed list
+        players={currentPlayers} // Pass the paginated list
         onViewPlayerProfile={onViewPlayerProfile}
         onDeletePlayer={deletePlayer}
         isAuthenticated={isAuthenticated}
-        searchTerm={searchTerm} // Pass search term
-        onSearchChange={setSearchTerm} // Pass search handler
-        sortKey={sortKey} // Pass sort key
-        onSortChange={setSortKey} // Pass sort key handler
-        sortDirection={sortDirection} // Pass sort direction
-        onSortDirectionChange={setSortDirection} // Pass sort direction handler
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        sortKey={sortKey}
+        onSortChange={setSortKey}
+        sortDirection={sortDirection}
+        onSortDirectionChange={setSortDirection}
+        // Pagination props
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={paginate}
+        totalPlayersCount={filteredAndSortedPlayers.length} // Pass total count for "No results" message
       />
 
       <Button onClick={onBack} variant="secondary" className="w-full">
