@@ -1,5 +1,7 @@
 // src/pages/index.ts
-export { HomePage } from './HomePage';
-export { PlayersPage } from './PlayersPage';
-export { AuthPage } from './AuthPage';
-export { CardsPage } from './CardsPage';
+export * from './HomePage';
+export * from './PlayersPage';
+export * from './AuthPage';
+export * from './CardsPage'; // Make sure CardsPage is exported
+export * from './RepacksPage'; // New export
+export * from './PromosPage';   // New export

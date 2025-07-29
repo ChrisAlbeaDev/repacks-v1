@@ -1,29 +1,13 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
+    "composite": true, // Required for referenced projects
     "skipLibCheck": true,
-
-    /* Bundler mode */
+    "module": "ESNext",
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "react-jsx",
-
-    /* Linting */
+    "allowSyntheticDefaultImports": true,
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-
-    // Ensure typeRoots includes your global.d.ts location if it's not in root/src directly
-    "typeRoots": ["./node_modules/@types", "./src/types", "./"]
+    // "noEmit": true, // REMOVE or set to false: Referenced projects cannot disable emit
+    "types": ["node"]
   },
-  // IMPORTANT: 'include' MUST be at this level, directly under the root "{"
-  "include": ["src/**/*.ts", "src/**/*.tsx", "global.d.ts"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": ["vite.config.ts"] // Or any other Node.js specific files
 }
