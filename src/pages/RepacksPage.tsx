@@ -5,23 +5,42 @@ import { RepackList } from '../pages/repacks/components/RepackList';
 import { AddRepackModal } from '../pages/repacks/components/AddRepackModal';
 import { RepackInfoPage } from '../pages/repacks/RepackInfoPage';
 import { useRepacks } from '../pages/repacks/hooks/useRepacks';
-import { usePromos } from '../pages/promos/hooks/usePromos'; // To get all promos for ManageRepackPromosModal
+import { usePromos } from '../pages/promos/hooks/usePromos'; // Import usePromos to get allPromos
+import { Promo } from '../pages/promos/types'; // Import Promo type
 
 interface RepacksPageProps {
   onBack: () => void;
+  onViewGame: (repackId: string) => void; // New prop for game view
   isAuthenticated: boolean;
   authError: string | null;
   currentUserId: string | null;
+  allPromos: Promo[]; // All promos from App.tsx (for ManageRepackPromosModal)
+  promosLoading: boolean; // Loading state for allPromos
+  promosError: string | null; // Error state for allPromos
+  clearPromoError: () => void; // Clear error for allPromos
 }
 
-export const RepacksPage: React.FC<RepacksPageProps> = ({ onBack, isAuthenticated, authError, currentUserId }) => {
+export const RepacksPage: React.FC<RepacksPageProps> = ({
+  onBack,
+  onViewGame, // Destructure new prop
+  isAuthenticated,
+  authError,
+  currentUserId,
+  allPromos,
+  promosLoading,
+  promosError,
+  clearPromoError,
+}) => {
   const [selectedRepackId, setSelectedRepackId] = useState<string | null>(null);
   const [showAddRepackModal, setShowAddRepackModal] = useState(false);
 
+  // Diagnostic log: Check if onViewGame is received correctly
+  console.log("RepacksPage: onViewGame prop received:", onViewGame);
+
   const {
     repacks,
-    loading: repacksLoading,
-    error: repacksError,
+    loading,
+    error,
     addRepack,
     updateRepack,
     deleteRepack,
@@ -31,9 +50,6 @@ export const RepacksPage: React.FC<RepacksPageProps> = ({ onBack, isAuthenticate
     clearRepackError,
   } = useRepacks({ isAuthenticated, currentUserId });
 
-  // Fetch all promos to pass to ManageRepackPromosModal
-  const { promos: allPromos, loading: promosLoading, error: promosError, clearPromoError } = usePromos({ isAuthenticated, currentUserId });
-
   const handleViewRepackDetails = (repackId: string) => {
     setSelectedRepackId(repackId);
   };
@@ -41,9 +57,6 @@ export const RepacksPage: React.FC<RepacksPageProps> = ({ onBack, isAuthenticate
   const handleBackToRepacksList = () => {
     setSelectedRepackId(null);
   };
-
-  const overallLoading = repacksLoading || promosLoading;
-  const overallError = repacksError || promosError;
 
   return (
     <div className="flex flex-col space-y-4">
@@ -62,16 +75,16 @@ export const RepacksPage: React.FC<RepacksPageProps> = ({ onBack, isAuthenticate
           onClick={() => { setShowAddRepackModal(true); clearRepackError(); }}
           variant="primary"
           className="w-full"
-          disabled={!isAuthenticated || overallLoading}
+          disabled={!isAuthenticated || loading}
         >
           Add New Repack
         </Button>
       )}
 
-      {overallLoading && repacks.length === 0 && <p className="text-center text-gray-600">Loading repacks...</p>}
-      {overallError && <p className="text-center text-red-500">Error: {overallError}</p>}
+      {loading && repacks.length === 0 && <p className="text-center text-gray-600">Loading repacks...</p>}
+      {error && <p className="text-center text-red-500">Error: {error}</p>}
 
-      {!overallLoading && repacks.length === 0 && !overallError && !selectedRepackId && (
+      {!loading && repacks.length === 0 && !error && !selectedRepackId && (
         <p className="text-center text-gray-600">No repacks found. Add one to get started!</p>
       )}
 
@@ -84,16 +97,17 @@ export const RepacksPage: React.FC<RepacksPageProps> = ({ onBack, isAuthenticate
           deleteRepack={deleteRepack}
           addPromosToRepack={addPromosToRepack}
           removePromoFromRepack={removePromoFromRepack}
-          allPromos={allPromos} // Pass all available promos
-          loading={overallLoading}
-          error={overallError}
-          clearError={() => { clearRepackError(); clearPromoError(); }} // Clear both errors
+          allPromos={allPromos} // Pass allPromos to RepackInfoPage
+          loading={loading}
+          error={error}
+          clearError={clearRepackError}
           isAuthenticated={isAuthenticated}
         />
       ) : (
         <RepackList
           repacks={repacks}
           onViewRepackDetails={handleViewRepackDetails}
+          onViewGame={onViewGame} // Pass onViewGame to RepackList
           isAuthenticated={isAuthenticated}
         />
       )}
@@ -108,8 +122,8 @@ export const RepacksPage: React.FC<RepacksPageProps> = ({ onBack, isAuthenticate
         <AddRepackModal
           onClose={() => setShowAddRepackModal(false)}
           onAddRepack={addRepack}
-          loading={repacksLoading}
-          error={repacksError}
+          loading={loading}
+          error={error}
           clearError={clearRepackError}
           isAuthenticated={isAuthenticated}
         />

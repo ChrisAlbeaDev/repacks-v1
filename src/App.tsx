@@ -8,12 +8,13 @@ import { supabase, subscribeToSupabaseAuth, getSupabaseAuthState } from './lib/s
 import { Layout } from './components/Layout';
 import { Router } from './components/Router';
 
-type AppView = 'auth' | 'home' | 'players' | 'playerProfile' | 'playerPayments' | 'cards' | 'repacks' | 'promos'; // Updated AppView
+type AppView = 'auth' | 'home' | 'players' | 'playerProfile' | 'playerPayments' | 'cards' | 'repacks' | 'promos' | 'gameView'; // Updated AppView with 'gameView'
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>('auth');
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
+  const [selectedRepackForGameId, setSelectedRepackForGameId] = useState<string | null>(null); // New state for game view
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
@@ -85,18 +86,25 @@ function App() {
     setCurrentView('cards');
   }, []);
 
-  const goToRepacksList = useCallback(() => { // New navigation
+  const goToRepacksList = useCallback(() => {
     setCurrentView('repacks');
+    setSelectedRepackForGameId(null); // Clear selected repack when going back to list
   }, []);
 
-  const goToPromosList = useCallback(() => { // New navigation
+  const goToPromosList = useCallback(() => {
     setCurrentView('promos');
+  }, []);
+
+  const goToGameView = useCallback((repackId: string) => { // New navigation function
+    setSelectedRepackForGameId(repackId);
+    setCurrentView('gameView');
   }, []);
 
   const goToHome = useCallback(() => {
     setCurrentView('home');
     setSelectedPlayerId(null);
     setSelectedPlayerName(null);
+    setSelectedRepackForGameId(null); // Clear selected repack on going home
   }, []);
 
   const goToPlayerProfile = useCallback((id: string) => {
@@ -136,15 +144,13 @@ function App() {
       setAuthError(state.error);
       setUserId(state.user?.id || null);
 
-      // We use a functional update for currentView to ensure we have the latest state
-      // without making currentView a dependency of this useEffect.
       setCurrentView(prevView => {
         if (state.session && prevView === 'auth') {
           return 'home';
         } else if (!state.session && prevView !== 'auth') {
           return 'auth';
         }
-        return prevView; // Keep current view if no navigation change is needed
+        return prevView;
       });
     });
 
@@ -166,7 +172,7 @@ function App() {
       isMounted = false;
       unsubscribe();
     }
-  }, []); // Changed dependency array to empty: runs only once on mount
+  }, []);
 
   if (authLoading) {
     return (
@@ -189,7 +195,7 @@ function App() {
         currentView={currentView}
         isAuthenticated={isAuthenticated}
         authError={authError}
-        userId={userId} // Pass userId to Router
+        userId={userId}
         players={players}
         playersLoading={playersLoading}
         playersError={playersError}
@@ -200,39 +206,41 @@ function App() {
         cards={cards}
         cardsLoading={cardsLoading}
         cardsError={cardsError}
-        addCard={uploadJsonCards} // Pass uploadJsonCards here
+        addCard={uploadJsonCards}
         updateCard={updateCard}
         deleteCard={deleteCard}
-        fetchCardById={fetchCardById} // Pass fetchCardById
+        fetchCardById={fetchCardById}
         clearCardError={clearCardError}
-        repacks={repacks} // New: Pass repacks data
-        repacksLoading={repacksLoading} // New: Pass repacks loading state
-        repacksError={repacksError} // New: Pass repacks error state
-        addRepack={addRepack} // New: Pass addRepack function
-        updateRepack={updateRepack} // New: Pass updateRepack function
-        deleteRepack={deleteRepack} // New: Pass deleteRepack function
-        fetchRepackById={fetchRepackById} // New: Pass fetchRepackById function
-        addPromosToRepack={addPromosToRepack} // New: Pass addPromosToRepack
-        removePromoFromRepack={removePromoFromRepack} // New: Pass removePromoFromRepack
-        clearRepackError={clearRepackError} // New: Pass clearRepackError
-        promos={promos} // New: Pass promos data
-        promosLoading={promosLoading} // New: Pass promos loading state
-        promosError={promosError} // New: Pass promos error state
-        addPromo={addPromo} // New: Pass addPromo function
-        updatePromo={updatePromo} // New: Pass updatePromo function
-        deletePromo={deletePromo} // New: Pass deletePromo function
-        fetchPromoById={fetchPromoById} // New: Pass fetchPromoById function
-        clearPromoError={clearPromoError} // New: Pass clearPromoError
+        repacks={repacks}
+        repacksLoading={repacksLoading}
+        repacksError={repacksError}
+        addRepack={addRepack}
+        updateRepack={updateRepack}
+        deleteRepack={deleteRepack}
+        fetchRepackById={fetchRepackById}
+        addPromosToRepack={addPromosToRepack}
+        removePromoFromRepack={removePromoFromRepack}
+        clearRepackError={clearRepackError}
+        promos={promos}
+        promosLoading={promosLoading}
+        promosError={promosError}
+        addPromo={addPromo}
+        updatePromo={updatePromo}
+        deletePromo={deletePromo}
+        fetchPromoById={fetchPromoById}
+        clearPromoError={clearPromoError}
         onAuthSuccess={handleAuthSuccess}
         goToPlayersList={goToPlayersList}
         goToCardsList={goToCardsList}
-        goToRepacksList={goToRepacksList} // New navigation
-        goToPromosList={goToPromosList}   // New navigation
+        goToRepacksList={goToRepacksList}
+        goToPromosList={goToPromosList}
+        goToGameView={goToGameView} // Pass new navigation function
         goToHome={goToHome}
         goToPlayerProfile={goToPlayerProfile}
         goToPlayerPayments={goToPlayerPayments}
         selectedPlayerId={selectedPlayerId}
         selectedPlayerName={selectedPlayerName}
+        selectedRepackForGameId={selectedRepackForGameId} // Pass new state
       />
     </Layout>
   );

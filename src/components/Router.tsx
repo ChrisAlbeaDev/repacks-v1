@@ -1,21 +1,21 @@
 // src/components/Router.tsx
 import React from 'react';
-import { HomePage, PlayersPage, AuthPage, CardsPage, RepacksPage, PromosPage } from '../pages'; // New imports
+import { HomePage, PlayersPage, AuthPage, CardsPage, RepacksPage, PromosPage, GameViewPage } from '../pages'; // New import: GameViewPage
 import { PlayerProfilePage, PlayerPaymentsPage } from '../pages/players';
 import { Button } from './Button';
 import { Player } from '../pages/players/types';
-import { Card } from '../pages/cards/types'; // Correct Card import
-import { Repack, RepackWithPromos } from '../pages/repacks/types'; // New imports for Repack types
-import { Promo } from '../pages/promos/types'; // Corrected: Import Promo from promos/types
-// Removed: import { supabase } from '../lib/supabaseClient'; // No longer needed for currentUserId here
+import { Card } from '../pages/cards/types';
+import { Repack, RepackWithPromos } from '../pages/repacks/types';
+import { Promo } from '../pages/promos/types';
+import { supabase } from '../lib/supabaseClient';
 
-type AppView = 'auth' | 'home' | 'players' | 'playerProfile' | 'playerPayments' | 'cards' | 'cardInfo' | 'repacks' | 'promos' | 'repackInfo' | 'promoInfo'; // Updated AppView
+type AppView = 'auth' | 'home' | 'players' | 'playerProfile' | 'playerPayments' | 'cards' | 'cardInfo' | 'repacks' | 'promos' | 'repackInfo' | 'promoInfo' | 'gameView'; // Updated AppView
 
 interface RouterProps {
   currentView: AppView;
   isAuthenticated: boolean;
   authError: string | null;
-  userId: string | null; // Added userId prop to RouterProps
+  userId: string | null;
   // Player-related props
   players: Player[];
   playersLoading: boolean;
@@ -24,22 +24,16 @@ interface RouterProps {
   updatePlayer: (playerId: string, updatedFields: Partial<Omit<Player, 'player_id' | 'inserted_at' | 'user_id' | 'profile_pic_url'>>, profilePicFile: File | null, shouldClearProfilePic: boolean) => Promise<Player | undefined>;
   deletePlayer: (playerId: string) => Promise<void>;
   clearPlayerError: () => void;
-  // Card-related props (These are now passed to CardsPage via its own useCards hook)
-  // The Router itself does not need to pass them directly to CardsPage
-  // CardsPage will use its own useCards hook.
-  // We keep the types here for the Router's overall knowledge of the app's state/functions.
+  // Card-related props
   cards: Card[];
   cardsLoading: boolean;
   cardsError: string | null;
-  addCard: (jsonData: any[]) => Promise<Card[] | undefined>; // Changed to match uploadJsonCards
+  addCard: (jsonData: any[]) => Promise<Card[] | undefined>;
   updateCard: (cardId: string, updatedFields: Partial<Omit<Card, 'id' | 'card_id' | 'inserted_at' | 'user_id'>>) => Promise<Card | undefined>;
   deleteCard: (cardId: string) => Promise<void>;
-  fetchCardById: (cardId: string) => Promise<Card | null>; // New prop
+  fetchCardById: (cardId: string) => Promise<Card | null>;
   clearCardError: () => void;
-  // Repack-related props (These are now passed to RepacksPage via its own useRepacks hook)
-  // The Router itself does not need to pass them directly to RepacksPage
-  // RepacksPage will use its own useRepacks hook.
-  // We keep the types here for the Router's overall knowledge of the app's state/functions.
+  // Repack-related props (Router still needs to know about Repack functions to pass them to GameViewPage)
   repacks: Repack[];
   repacksLoading: boolean;
   repacksError: string | null;
@@ -50,10 +44,8 @@ interface RouterProps {
   addPromosToRepack: (repackId: string, promoIds: string[]) => Promise<void>;
   removePromoFromRepack: (repackId: string, promoId: string) => Promise<void>;
   clearRepackError: () => void;
-  // Promo-related props (These are now passed to PromosPage via its own usePromos hook)
-  // The Router itself does not need to pass them directly to PromosPage
-  // PromosPage will use its own usePromos hook.
-  promos: Promo[]; // All promos for selection in Repack management
+  // Promo-related props
+  promos: Promo[];
   promosLoading: boolean;
   promosError: string | null;
   addPromo: (newPromo: Omit<Promo, 'id' | 'promo_id' | 'inserted_at' | 'user_id'>) => Promise<Promo | undefined>;
@@ -65,21 +57,23 @@ interface RouterProps {
   onAuthSuccess: () => void;
   goToPlayersList: () => void;
   goToCardsList: () => void;
-  goToRepacksList: () => void; // New navigation
-  goToPromosList: () => void;   // New navigation
+  goToRepacksList: () => void;
+  goToPromosList: () => void;
+  goToGameView: (repackId: string) => void; // New navigation function
   goToHome: () => void;
   goToPlayerProfile: (id: string) => void;
   goToPlayerPayments: (id: string, name: string) => void;
   // Selected item states
   selectedPlayerId: string | null;
   selectedPlayerName: string | null;
+  selectedRepackForGameId: string | null; // New state
 }
 
 export const Router: React.FC<RouterProps> = ({
   currentView,
   isAuthenticated,
   authError,
-  userId, // Destructure userId prop
+  userId,
   players,
   playersLoading,
   playersError,
@@ -87,21 +81,51 @@ export const Router: React.FC<RouterProps> = ({
   updatePlayer,
   deletePlayer,
   clearPlayerError,
-  // Removed direct passing of cards, repacks, promos, and their CRUD functions
-  // as CardsPage, RepacksPage and PromosPage now manage their own data fetching.
+  cards,
+  cardsLoading,
+  cardsError,
+  addCard,
+  updateCard,
+  deleteCard,
+  fetchCardById,
+  clearCardError,
+  repacks,
+  repacksLoading,
+  repacksError,
+  addRepack,
+  updateRepack,
+  deleteRepack,
+  fetchRepackById,
+  addPromosToRepack,
+  removePromoFromRepack,
+  clearRepackError,
+  promos,
+  promosLoading,
+  promosError,
+  addPromo,
+  updatePromo,
+  deletePromo,
+  fetchPromoById,
+  clearPromoError,
   onAuthSuccess,
   goToPlayersList,
   goToCardsList,
   goToRepacksList,
   goToPromosList,
+  goToGameView, // Destructure new navigation function
   goToHome,
   goToPlayerProfile,
   goToPlayerPayments,
   selectedPlayerId,
   selectedPlayerName,
+  selectedRepackForGameId, // Destructure new state
 }) => {
-  // Use the userId prop directly instead of accessing supabase.auth.currentUser
+  // Get currentUserId for pages that need it for their hooks
   const currentUserId = userId;
+
+  // Diagnostic log: Check if goToGameView is received correctly from App.tsx
+  console.log("Router: goToGameView prop received from App:", goToGameView);
+
 
   switch (currentView) {
     case 'auth':
@@ -115,7 +139,7 @@ export const Router: React.FC<RouterProps> = ({
           onViewPlayerProfile={goToPlayerProfile}
           isAuthenticated={isAuthenticated}
           authError={authError}
-          players={players} // These props are still passed from App.tsx's usePlayers
+          players={players}
           loading={playersLoading}
           error={playersError}
           addPlayer={addPlayer}
@@ -129,20 +153,23 @@ export const Router: React.FC<RouterProps> = ({
           onBack={goToHome}
           isAuthenticated={isAuthenticated}
           authError={authError}
-          currentUserId={currentUserId} // Pass currentUserId to CardsPage
-          // CardsPage will use its own useCards hook.
-          // So, no need to pass cards or their CRUD functions here.
+          currentUserId={currentUserId}
         />
       );
     case 'repacks':
+      // Diagnostic log: Check if onViewGame is passed to RepacksPage
+      console.log("Router: Passing onViewGame to RepacksPage:", goToGameView);
       return (
         <RepacksPage
           onBack={goToHome}
+          onViewGame={goToGameView} // Pass goToGameView to RepacksPage
           isAuthenticated={isAuthenticated}
           authError={authError}
-          currentUserId={currentUserId} // Pass currentUserId to RepacksPage
-          // RepacksPage will use its own useRepacks and usePromos hooks
-          // So, no need to pass repacks, promos, or their CRUD functions here.
+          currentUserId={currentUserId}
+          allPromos={promos} // Pass allPromos for ManageRepackPromosModal
+          promosLoading={promosLoading}
+          promosError={promosError}
+          clearPromoError={clearPromoError}
         />
       );
     case 'promos':
@@ -151,9 +178,28 @@ export const Router: React.FC<RouterProps> = ({
           onBack={goToHome}
           isAuthenticated={isAuthenticated}
           authError={authError}
-          currentUserId={currentUserId} // Pass currentUserId to PromosPage
-          // PromosPage will use its own usePromos hook.
-          // So, no need to pass promos or their CRUD functions here.
+          currentUserId={currentUserId}
+        />
+      );
+    case 'gameView': // New case for GameViewPage
+      if (!selectedRepackForGameId) {
+        return (
+          <div className="text-center">
+            <p className="text-red-500">No repack selected for game view.</p>
+            <Button onClick={goToRepacksList} variant="primary" className="mt-4">
+              Go to Repacks List
+            </Button>
+          </div>
+        );
+      }
+      return (
+        <GameViewPage
+          repackId={selectedRepackForGameId}
+          onBack={goToRepacksList}
+          fetchRepackById={fetchRepackById} // Pass the fetch function from useRepacks
+          loading={repacksLoading} // Pass overall loading from useRepacks
+          error={repacksError} // Pass overall error from useRepacks
+          clearError={clearRepackError} // Pass clear error from useRepacks
         />
       );
     case 'playerProfile':
